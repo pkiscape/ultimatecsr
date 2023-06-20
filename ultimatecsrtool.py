@@ -85,7 +85,7 @@ def x509_subject():
 	userid = input(u"UserID: ") #NameOID.USER_ID
 	givenname = input(u"Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
 	surname = input(u"Surname: ") #NameOID.SURNAME: Surname or Family Name
-	title = input(u"Title  or Honorific: ") #NameOID.TITLE: Title or Honorific
+	title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	print()
 
