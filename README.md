@@ -1,2 +1,2 @@
-# ulltimatecsrtool
-The Ultimate CSR tool is a CLI tool that allows you to create a CSR. It offers many different subject and v3 extension options
+# Ultimate CSR Tool
+The Ultimate CSR tool is a CLI tool that allows you to define many subjects and v3 extensions for your CSR 
