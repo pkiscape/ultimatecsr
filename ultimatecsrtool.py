@@ -7,9 +7,9 @@ Ultimate CSR tool
 
 =========================================
 
-@version	1 
-@author     pkiscape.com
-@link		https://github.com/pkiscape
+@version  1 
+@author   pkiscape.com
+@link	  https://github.com/pkiscape
 
 '''
 
