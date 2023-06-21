@@ -21,6 +21,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import ExtensionOID
+from cryptography.hazmat.backends import default_backend #For older versions of cryptography
 from getpass import getpass
 
 def load_privatekey(privatekey):
@@ -35,14 +36,14 @@ def load_privatekey(privatekey):
 		loaded_privatekey = private_key_file.read()
 
 	try:
-		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey,password=None)
+		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
 		return loaded_privatekey
 	except:
 		print("Is your private key encrypted? If so:")
 		password = getpass("Enter the password for the private key: ")
 
 		try:
-			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey,password=password.encode())
+			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey,password=password.encode(),backend=default_backend())
 			return loaded_privatekey
 			print("Encrypted private key loaded")
 
