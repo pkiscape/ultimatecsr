@@ -23,7 +23,7 @@ Example:
 ```
 openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out privatekey.pem
 ```
-2) Generate a CSR with UltimateCSR
+2) Generate a CSR with UltimateCSR, passing the private key and defining an outfile.
 
 ```
 python3 ultimatecsr.py -p privatekey.pem -o mycsr.pem
