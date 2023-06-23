@@ -15,7 +15,17 @@ optional arguments:
 This tool allows you to:
 
 - Define many subject fields such as Common Name, Email Address, UserID, Given Name, Title, Pseudonym and more!
-- Request v3 extensions such as Key Usage, Extended Key Usage and Basic Constraints. 
+- Request v3 extensions such as Key Usage, Extended Key Usage and Basic Constraints.
+
+Make sure Python Cryptography is up to date:
+
+```
+pip3 install --upgrade cryptography
+```
+or
+```
+pip install --upgrade cryptography
+```
 
 Example:
 
