@@ -1,5 +1,5 @@
 # Ultimate CSR
-Ultimate CSR is a CLI tool that allows you to define many subjects and v3 extensions for your CSR 
+Ultimate CSR is a CLI tool that allows you to define subjects and v3 extensions for your CSR 
 
 ```
 usage: ultimatecsr.py -p PRIVATEKEY -o FILENAME
