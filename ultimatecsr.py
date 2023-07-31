@@ -7,9 +7,9 @@ Ultimate CSR tool
 
 =========================================
 
-@version  1 
-@author   pkiscape.com
-@link	  https://github.com/pkiscape
+@version	2
+@author     pkiscape.com
+@link		https://github.com/pkiscape
 
 '''
 
@@ -54,7 +54,6 @@ def load_privatekey(privatekey):
 			return loaded_privatekey
 			
 
-
 def x509_subject():
 
 	'''
@@ -62,9 +61,7 @@ def x509_subject():
 	This function defines the subjects for a given CSR. It returns the subject object
 
 	Todo: Maybe add these later?
-
 	NameOID.SERIAL_NUMBER: Serial Number (SERIALNUMBER)	
-	NameOID.INITIALS: Initials of Given Names
 	NameOID.BUSINESS_CATEGORY: Business Category or Industry Type
 	NameOID.JURISDICTION_COUNTRY_NAME: Jurisdiction Country Name
 	NameOID.JURISDICTION_STATE_OR_PROVINCE_NAME: Jurisdiction State or Province 
@@ -85,6 +82,7 @@ def x509_subject():
 	email = input(u"Email Address: ") #NameOID.EMAIL_ADDRESS: Email Address
 	userid = input(u"UserID: ") #NameOID.USER_ID
 	givenname = input(u"Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
+	initials = input(u"Initials: ") #NameOID.INITIALS: Initials of Given Names
 	surname = input(u"Surname: ") #NameOID.SURNAME: Surname or Family Name
 	title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
@@ -116,6 +114,8 @@ def x509_subject():
 		subject_attributes.append(x509.NameAttribute(NameOID.USER_ID, userid))
 	if givenname:
 		subject_attributes.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+	if initials:
+		subject_attributes.append(x509.NameAttribute(NameOID.INITIALS, initials))	
 	if surname:
 		subject_attributes.append(x509.NameAttribute(NameOID.SURNAME, surname))
 	if title:
@@ -406,7 +406,11 @@ def main():
 				csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
 
 				#Pass CSR to x509_extensions(), add v3 extensions, return CSR
-				csr = x509_extensions(csr)
+
+				yn_x509v3_ext = input("Would you like to request x509v3 Extensions? (y/n):")
+				if yn_x509v3_ext == "y":
+					print("yes")
+					csr = x509_extensions(csr)
 				
 				#Sign CSR
 				csr = csr.sign(privatekey, hashes.SHA256())
