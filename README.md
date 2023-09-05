@@ -1,5 +1,7 @@
-# Ultimate CSR
+# Ultimate CSR ![alt text](https://pkiscape.com/img/favicon.png)
 Ultimate CSR is a CLI tool that allows you to define more complex subjects and v3 extensions for your CSR. 
+
+
 
 ```
 usage: ultimatecsr.py -p PRIVATEKEY -o FILENAME
