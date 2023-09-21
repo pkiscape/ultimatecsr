@@ -7,14 +7,15 @@ Ultimate CSR tool
 
 =========================================
 
-@version	2
+@version    3
 @author     pkiscape.com
-@link		https://github.com/pkiscape
+@link	    https://github.com/pkiscape
 
 '''
 
 import argparse
 import textwrap
+import ipaddress
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
@@ -135,7 +136,7 @@ def x509_extensions(csr):
 	returns the csr back to the main function with the v3 extensions.
 
     Todo:Maybe add these later?
-    SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses)
+    SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses):Added in v3
     NameConstraints: x509.NameConstraints
     IssuerAlternativeName: x509.IssuerAlternativeName
 	SubjectInformationAccess: x509.SubjectInformationAccess
@@ -155,6 +156,7 @@ def x509_extensions(csr):
 	if yn_subject_alt_names == 'y':
 		subject_alt_names_values = []
 
+		#DNS Names
 		yn_san_dns = input("Would you like to add DNS names? (y/n): ")
 
 		if yn_san_dns == "y":
@@ -165,6 +167,18 @@ def x509_extensions(csr):
 				dns_name = input("Enter DNS entry: ")
 				subject_alt_names_values.append(x509.DNSName(dns_name))
 		
+		#IPv4 Addresses
+		yn_san_ip = input("Would you like to add IPv4 Addresses? (y/n): ")
+
+		if yn_san_ip == 'y':
+			san_ip_int = input("How many? Enter in an integer: ")
+			san_ip_int = int(san_ip_int)
+
+			for ip_entry in range(0,san_ip_int):
+				ip = input("Enter IPv4 Address: ")
+				ip = ipaddress.IPv4Address(ip)
+				subject_alt_names_values.append(x509.IPAddress(ip))
+
 		subject_alternative_name = x509.SubjectAlternativeName(subject_alt_names_values)
 
 		yn_san_critical = input("Would you like to mark Subject Alternative Name as critical? (y/n): ")
@@ -394,7 +408,7 @@ def main():
 	#If certificate filename was provided
 	if args.privatekey:
 		try:
-			print("\n" + "Welcome to the QuickCSR creator tool! By Pkiscape.com" + "\n")
+			print("\n" + "Welcome to the Ultimate CSR tool! By Pkiscape.com" + "\n")
 
 			privatekey = load_privatekey(args.privatekey)
 
@@ -421,9 +435,8 @@ def main():
 				# Convert bytes to a string
 				csr_pem_str = csr_pem.decode()
 
-				print()
-				print("Certificate signing request created:")
-				print()
+			
+				print("\n" +"Certificate signing request created:"+ "\n")
 				print(csr_pem_str)
 
 				if args.out:
