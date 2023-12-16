@@ -189,10 +189,10 @@ def x509_extensions(csr):
 	Defines the X509 v3 extensions for the Certificate signing request. This function takes in the csr, then
 	returns the csr back to the main function with the v3 extensions.
 
-    Todo:Maybe add these later?
-    SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses):Added in v3
-    NameConstraints: x509.NameConstraints
-    IssuerAlternativeName: x509.IssuerAlternativeName
+        Todo:Maybe add these later?
+        SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses):Added in v3
+        NameConstraints: x509.NameConstraints
+        IssuerAlternativeName: x509.IssuerAlternativeName
 	SubjectInformationAccess: x509.SubjectInformationAccess
 	InhibitAnyPolicy: x509.InhibitAnyPolicy
 	CRLDistributionPoints: x509.CRLDistributionPoints
