@@ -2,12 +2,10 @@
 
 '''
 =========================================
-
 Ultimate CSR tool
-
 =========================================
 
-@version    3
+@version    4
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
@@ -16,21 +14,21 @@ Ultimate CSR tool
 import argparse
 import textwrap
 import ipaddress
+from pathlib import Path
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import ExtensionOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
 from getpass import getpass
 
-def load_privatekey(privatekey):
+def load_private_key(privatekey):
 
 	'''
 	This function loads the passed private key. If it cannot load it, it asks for a password as the
 	private key may be encrypted.
-	
 	'''
 
 	with open(privatekey, "rb") as private_key_file:
@@ -53,24 +51,80 @@ def load_privatekey(privatekey):
 			print("Incorrect password or unable to load the private key.")
 			loaded_privatekey = "fail"
 			return loaded_privatekey
+
+def private_key_checker(filename):
+	'''
+	This function checks if you specified an existing private key to protect agianst 
+	overwriting an already created private key.
+	'''
+
+	file_path = Path(filename)
+
+	if file_path.is_file():
+		print(f"The file '{filename}' exists. Specify a new name for the private key you want to create.")
+		print(f"If '{filename}' is a private key, use the -p (--privatekey) parameter instead.")
+		check = True
+
+	else:
+		check = False
+
+	return check
+
+def create_private_key(private_key_filename, encrypt):
+	'''
+	This creates a private key if none are defined
+	'''
+
+	print("Which algorithm would you like your private key to be? (Default: RSA 2048)")
+	print("1. RSA2048")
+	print("2. SECP256R1")
+	algo_answer = input("Type 1 or 2: ")
+
+	if algo_answer == "1":
+		private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048)
+
+	elif algo_answer == "2":
+		private_key = ec.generate_private_key(ec.SECP256R1())
+
+	else:
+		private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048)
+
+	if encrypt:
+		with open(private_key_filename, "wb") as file:
+			password = getpass("Enter the password you would like to use for the private key: ")
+			enc_algo = serialization.BestAvailableEncryption(password.encode())
+			private_key_bytes = private_key.private_bytes(
+				encoding=serialization.Encoding.PEM,
+				format=serialization.PrivateFormat.PKCS8,
+				encryption_algorithm=enc_algo)
+			file.write(private_key_bytes)
+
+	else:
+		with open(private_key_filename, "wb") as file:
+			private_key_bytes = private_key.private_bytes(
+				encoding=serialization.Encoding.PEM,
+	            format=serialization.PrivateFormat.TraditionalOpenSSL,
+	            encryption_algorithm=serialization.NoEncryption())
+			file.write(private_key_bytes)
+
+	return private_key
 			
 
 def x509_subject():
 
 	'''
 	
-	This function defines the subjects for a given CSR. It returns the subject object
+	This function defines the subjects for a given CSR. It returns the subject object.
 
 	Todo: Maybe add these later?
 	NameOID.SERIAL_NUMBER: Serial Number (SERIALNUMBER)	
 	NameOID.BUSINESS_CATEGORY: Business Category or Industry Type
 	NameOID.JURISDICTION_COUNTRY_NAME: Jurisdiction Country Name
 	NameOID.JURISDICTION_STATE_OR_PROVINCE_NAME: Jurisdiction State or Province 
-
 	'''
+	
 	print("==========Subject==========")
-	print("Enter in Subject attributes. Leave blank if not required")
-	print()
+	print("Enter in each Subject field you require. Leave blank if not required." + "\n")
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
 	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
@@ -89,42 +143,42 @@ def x509_subject():
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	print()
 
-	subject_attributes = []
+	subject_fields = []
 
 	if cn:
-		subject_attributes.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+		subject_fields.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
 	if country:
-		subject_attributes.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
+		subject_fields.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
 	if state:
-		subject_attributes.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
+		subject_fields.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
 	if street:
-		subject_attributes.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
+		subject_fields.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
 	if postalcode:
-		subject_attributes.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
+		subject_fields.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
 	if locality:
-		subject_attributes.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
+		subject_fields.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
 	if orgname:
-		subject_attributes.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
+		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
 	if orgunit:
-		subject_attributes.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
+		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
 	if dc:
-		subject_attributes.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
+		subject_fields.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
 	if email:
-		subject_attributes.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
+		subject_fields.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
 	if userid:
-		subject_attributes.append(x509.NameAttribute(NameOID.USER_ID, userid))
+		subject_fields.append(x509.NameAttribute(NameOID.USER_ID, userid))
 	if givenname:
-		subject_attributes.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+		subject_fields.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
 	if initials:
-		subject_attributes.append(x509.NameAttribute(NameOID.INITIALS, initials))	
+		subject_fields.append(x509.NameAttribute(NameOID.INITIALS, initials))	
 	if surname:
-		subject_attributes.append(x509.NameAttribute(NameOID.SURNAME, surname))
+		subject_fields.append(x509.NameAttribute(NameOID.SURNAME, surname))
 	if title:
-		subject_attributes.append(x509.NameAttribute(NameOID.TITLE, title))
+		subject_fields.append(x509.NameAttribute(NameOID.TITLE, title))
 	if pseudonym:
-		subject_attributes.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
+		subject_fields.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
 
-	subject = x509.Name(subject_attributes)
+	subject = x509.Name(subject_fields)
 
 	return subject
 
@@ -135,10 +189,10 @@ def x509_extensions(csr):
 	Defines the X509 v3 extensions for the Certificate signing request. This function takes in the csr, then
 	returns the csr back to the main function with the v3 extensions.
 
-    Todo:Maybe add these later?
-    SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses):Added in v3
-    NameConstraints: x509.NameConstraints
-    IssuerAlternativeName: x509.IssuerAlternativeName
+        Todo:Maybe add these later?
+        SubjectAlternativeName: x509.SubjectAlternativeName (IP Addresses):Added in v3
+        NameConstraints: x509.NameConstraints
+        IssuerAlternativeName: x509.IssuerAlternativeName
 	SubjectInformationAccess: x509.SubjectInformationAccess
 	InhibitAnyPolicy: x509.InhibitAnyPolicy
 	CRLDistributionPoints: x509.CRLDistributionPoints
@@ -318,7 +372,6 @@ def x509_extensions(csr):
 
 
 	#ExtendedKeyUsage: x509.ExtendedKeyUsage
-
 	yn_ext_key_usage = input("Would you like to request Extended Key Usage values? (y/n): ")
 
 	if yn_ext_key_usage == "y":
@@ -386,67 +439,81 @@ def x509_extensions(csr):
 
 	return csr
 
+def csr_builder(private_key):
+	'''
+	This builds the CSR object.
+	'''
+
+	#Add Subject
+	subject = x509_subject()
+	csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
+
+	#Pass CSR to x509_extensions(), add v3 extensions, return CSR
+	yn_x509v3_ext = input("Would you like to request x509v3 Extensions? (y/n):")
+	if yn_x509v3_ext == "y":
+		csr = x509_extensions(csr)
+				
+	#Sign CSR
+	csr = csr.sign(private_key, hashes.SHA256())
+
+	# Serialize CSR to PEM format
+	csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
+
+	# Convert bytes to a string
+	csr_pem_str = csr_pem.decode()
+	print("\n" +"Certificate signing request created:"+ "\n")
+	print(csr_pem_str)
+
+	return csr_pem
 
 
 def main():
 
 	'''
-	The Ultimate CSR tool is a CLI tool that allows you to define many different subjects and v3 extensions.
+	The Ultimate CSR tool is a CLI tool that allows you to define many different subject types and x509v3 extensions.
 
-	By Pkiscape.com
+	By: pkiscape.com
 
 	Ref: https://cryptography.io/en/latest/x509/reference/
 
 	'''
 
 	argparse_main = argparse.ArgumentParser(description="X509 Certificate Signing Request Maker")
-	argparse_main.add_argument("-p","--privatekey", help="Define your private key",required=True)
+
+	argparse_group = argparse_main.add_mutually_exclusive_group(required=True)
+
+	argparse_group.add_argument("-p","--privatekey",nargs="?",help="Define your existing private key.")
+	argparse_group.add_argument("-k","--createkey",nargs="?", default="", help="Creates a private key for you. If no name is provided, it uses privatekey.pem")
+	argparse_main.add_argument("-e","--encrypt", action="store_true", help="Encrypt the private key you create with -k (--createkey)")
 	argparse_main.add_argument("-o","--out", help="Define the CSR output filename")
-
 	args = argparse_main.parse_args()
+		
+	print("\n" + "Welcome to the Ultimate CSR tool! By: pkiscape.com" + "\n")
 
-	#If certificate filename was provided
 	if args.privatekey:
-		try:
-			print("\n" + "Welcome to the Ultimate CSR tool! By Pkiscape.com" + "\n")
+		private_key = load_private_key(args.privatekey)
 
-			privatekey = load_privatekey(args.privatekey)
+	if args.createkey:
+		check = private_key_checker(args.createkey)
+		if check == False:
+			private_key = create_private_key(args.createkey,args.encrypt)
 
-			if privatekey != "fail":
+	if args.createkey is None:
+		check = private_key_checker("privatekey.pem")
+		if check == False:
+			private_key = create_private_key("privatekey.pem",args.encrypt)
+
+	try:
+		csr = csr_builder(private_key)
+
+	except:
+		print("Stopping...")
+
+	if args.out:
+		with open(args.out, "wb") as outfile:
+			outfile.write(csr)
+			print(f"CSR PEM written to {args.out}")
 		
-				#Add Subject
-				subject = x509_subject()
-				
-				csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
-
-				#Pass CSR to x509_extensions(), add v3 extensions, return CSR
-
-				yn_x509v3_ext = input("Would you like to request x509v3 Extensions? (y/n):")
-				if yn_x509v3_ext == "y":
-					print("yes")
-					csr = x509_extensions(csr)
-				
-				#Sign CSR
-				csr = csr.sign(privatekey, hashes.SHA256())
-
-				# Serialize CSR to PEM format
-				csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
-
-				# Convert bytes to a string
-				csr_pem_str = csr_pem.decode()
-
-			
-				print("\n" +"Certificate signing request created:"+ "\n")
-				print(csr_pem_str)
-
-				if args.out:
-					with open(args.out, "wb") as outfile:
-						outfile.write(csr_pem)
-						print(f"CSR PEM written to {args.out}")
-		
-		except FileNotFoundError:
-			print("Private key file could not be found.")
-
 
 if __name__ == '__main__':
 	main()
