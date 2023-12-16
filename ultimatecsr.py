@@ -124,7 +124,7 @@ def x509_subject():
 	'''
 	
 	print("==========Subject==========")
-	print("Enter in each Subject field you require. Leave blank if not required" + "\n")
+	print("Enter in each Subject field you require. Leave blank if not required." + "\n")
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
 	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
@@ -143,42 +143,42 @@ def x509_subject():
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	print()
 
-	subject_attributes = []
+	subject_fields = []
 
 	if cn:
-		subject_attributes.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+		subject_fields.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
 	if country:
-		subject_attributes.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
+		subject_fields.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
 	if state:
-		subject_attributes.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
+		subject_fields.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
 	if street:
-		subject_attributes.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
+		subject_fields.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
 	if postalcode:
-		subject_attributes.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
+		subject_fields.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
 	if locality:
-		subject_attributes.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
+		subject_fields.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
 	if orgname:
-		subject_attributes.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
+		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
 	if orgunit:
-		subject_attributes.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
+		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
 	if dc:
-		subject_attributes.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
+		subject_fields.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
 	if email:
-		subject_attributes.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
+		subject_fields.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
 	if userid:
-		subject_attributes.append(x509.NameAttribute(NameOID.USER_ID, userid))
+		subject_fields.append(x509.NameAttribute(NameOID.USER_ID, userid))
 	if givenname:
-		subject_attributes.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+		subject_fields.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
 	if initials:
-		subject_attributes.append(x509.NameAttribute(NameOID.INITIALS, initials))	
+		subject_fields.append(x509.NameAttribute(NameOID.INITIALS, initials))	
 	if surname:
-		subject_attributes.append(x509.NameAttribute(NameOID.SURNAME, surname))
+		subject_fields.append(x509.NameAttribute(NameOID.SURNAME, surname))
 	if title:
-		subject_attributes.append(x509.NameAttribute(NameOID.TITLE, title))
+		subject_fields.append(x509.NameAttribute(NameOID.TITLE, title))
 	if pseudonym:
-		subject_attributes.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
+		subject_fields.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
 
-	subject = x509.Name(subject_attributes)
+	subject = x509.Name(subject_fields)
 
 	return subject
 
