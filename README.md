@@ -1,8 +1,9 @@
 # Ultimate CSR ![alt text](https://pkiscape.com/img/favicon.png)
 Ultimate CSR is a CLI tool that allows you to define more complex subjects and v3 extensions for your CSR. 
 
-Let me know if you'd like to see any other extensions
+Let me know if you'd like to see any other extensions or fields!
 
+## Usage
 ```
 usage: ultimatecsr.py -p PRIVATEKEY -o FILENAME
 
@@ -19,17 +20,20 @@ This tool allows you to:
 - Define many subject fields such as Common Name, Email Address, UserID, Given Name, Title, Pseudonym and more!
 - Request v3 extensions such as Key Usage, Extended Key Usage and Basic Constraints.
 
+## Installation
 Make sure Python Cryptography is up to date:
 
-```
-pip3 install --upgrade cryptography
-```
-or
 ```
 pip install --upgrade cryptography
 ```
 
-Example:
+Or, you can also use requirements.txt.
+```
+pip install -r requirements.txt
+```
+
+
+## Examples
 
 1) You must generate a private key yourself first. If you don't have one, you can use this OpenSSL command.
 ```
