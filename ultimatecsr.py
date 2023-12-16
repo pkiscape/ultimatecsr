@@ -124,7 +124,7 @@ def x509_subject():
 	'''
 	
 	print("==========Subject==========")
-	print("Enter in Subject attributes. Leave blank if not required" + "\n")
+	print("Enter in each Subject field you require. Leave blank if not required" + "\n")
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
 	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
@@ -451,7 +451,6 @@ def csr_builder(private_key):
 	#Pass CSR to x509_extensions(), add v3 extensions, return CSR
 	yn_x509v3_ext = input("Would you like to request x509v3 Extensions? (y/n):")
 	if yn_x509v3_ext == "y":
-		print("yes")
 		csr = x509_extensions(csr)
 				
 	#Sign CSR
