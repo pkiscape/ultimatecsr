@@ -23,6 +23,8 @@ This tool allows you to:
 - Define many subject fields such as Common Name, Email Address, UserID, Given Name, Title, Pseudonym and more!
 - Request v3 extensions such as Key Usage, Extended Key Usage, Basic Constraints and Subject Alternative Names.
 
+## Prerequisites
+
 Make sure Python Cryptography is up to date:
 
 ```
@@ -33,7 +35,7 @@ or use requirements.txt
 pip install -r requirements.txt
 ```
 
-Examples:
+## Examples:
 
 Create a CSR defining an already existing private key (great_privatekey.pem), outputting the CSR to a file called "mycsr.pem".
 
