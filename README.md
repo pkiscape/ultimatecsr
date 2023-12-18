@@ -26,11 +26,11 @@ This tool allows you to:
 Make sure Python Cryptography is up to date:
 
 ```
-pip3 install --upgrade cryptography
-```
-or
-```
 pip install --upgrade cryptography
+```
+or use requirements.txt
+```
+pip install -r requirements.txt
 ```
 
 Examples:
