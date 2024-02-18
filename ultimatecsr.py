@@ -5,7 +5,7 @@
 Ultimate CSR tool
 =========================================
 
-@version    6
+@version    7
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
@@ -24,6 +24,15 @@ from cryptography.x509.oid import ExtensionOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
 from getpass import getpass
 
+'''
+
+Todo: Ideas
+
+-verbosity
+-longer/shorter prompts
+
+'''
+
 def load_private_key(privatekey):
 
 	'''
@@ -36,6 +45,7 @@ def load_private_key(privatekey):
 
 	try:
 		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
+		#print(f"Loaded Private Key {privatekey}")
 		return loaded_privatekey
 	except:
 		print("Is your private key encrypted? If so:")
@@ -51,7 +61,7 @@ def load_private_key(privatekey):
 			loaded_privatekey = "fail"
 			quit()
 
-def private_key_checker(filename):
+def private_key_checker(filename: str):
 	'''
 	This function checks if you specified an existing private key to protect agianst 
 	overwriting an already created private key.
@@ -61,7 +71,7 @@ def private_key_checker(filename):
 
 	if file_path.is_file():
 		print(f"The file '{filename}' exists. Specify a new name for the private key you want to create.")
-		print(f"If '{filename}' is a private key you want to use, use the -p (--privatekey) parameter instead.")
+		print(f"If '{filename}' is a private key you want to use, use the -p (--privatekey) parameter instead.\n")
 		check = True
 		quit()
 
@@ -70,33 +80,28 @@ def private_key_checker(filename):
 
 	return check
 
-def create_private_key(private_key_filename, encrypt):
+def create_private_key(private_key_filename: str, encrypt, key_algorithm):
 	'''
-	This creates a private key if none are defined.
+	Creates a private key. 
+	Default algorithm: SECP256R1 (NIST P-256)
+	
+	Valid Algorithms: "RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1"
 	'''
 
-	print("Which algorithm would you like your private key to be?")
-	print("1. RSA2048")
-	print("2. RSA4096")
-	print("3. Elliptic Curve SECP256R1 (NIST P-256)")
+	if key_algorithm == "RSA2048":
+		private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048,backend=default_backend())
 
-	while True:
-		algo_answer = input("Type 1, 2 or 3: ")
+	if key_algorithm == "RSA4096":
+		private_key = rsa.generate_private_key(public_exponent=65537, key_size=4096,backend=default_backend())
 
-		if algo_answer == "1":
-			private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048)
-			break
+	if key_algorithm == "SECP256R1":
+		private_key = ec.generate_private_key(ec.SECP256R1(),backend=default_backend())
 
-		elif algo_answer == "2":
-			private_key = rsa.generate_private_key(public_exponent=65537, key_size=4096)
-			break
+	if key_algorithm == "SECP384R1":
+		private_key = ec.generate_private_key(ec.SECP384R1(),backend=default_backend())
 
-		elif algo_answer == "3":
-			private_key = ec.generate_private_key(ec.SECP256R1())
-			break
-
-		else:
-			print("Please type in a 1, 2 or 3")
+	if key_algorithm == "SECP521R1":
+		private_key = ec.generate_private_key(ec.SECP521R1(),backend=default_backend())
 
 	if encrypt:
 		with open(private_key_filename, "wb") as file:
@@ -116,9 +121,10 @@ def create_private_key(private_key_filename, encrypt):
 	            encryption_algorithm=serialization.NoEncryption())
 			file.write(private_key_bytes)
 
+	print(f"Created Private Key: '{private_key_filename}' using {key_algorithm}.\n")
 	return private_key		
 
-def hash_builder(hash_algo):
+def hash_builder(hash_algorithm):
 	'''
 	Chooses the hash function based on the one that was provided
 
@@ -133,28 +139,28 @@ def hash_builder(hash_algo):
     hashes.SHA3_512,
 	'''
 
-	if hash_algo == "SHA224":
+	if hash_algorithm == "SHA224":
 		hash_function_obj = hashes.SHA224()
 
-	if hash_algo == "SHA256":
+	if hash_algorithm == "SHA256":
 		hash_function_obj = hashes.SHA256()
 
-	if hash_algo == "SHA384":
+	if hash_algorithm == "SHA384":
 		hash_function_obj = hashes.SHA384()
 
-	if hash_algo == "SHA512":
+	if hash_algorithm == "SHA512":
 		hash_function_obj = hashes.SHA512()
 
-	if hash_algo == "SHA3_224":
+	if hash_algorithm == "SHA3_224":
 		hash_function_obj = hashes.SHA3_224()
 
-	if hash_algo == "SHA3_256":
+	if hash_algorithm == "SHA3_256":
 		hash_function_obj = hashes.SHA3_256()
 
-	if hash_algo == "SHA3_384":
+	if hash_algorithm == "SHA3_384":
 		hash_function_obj = hashes.SHA3_384()
 
-	if hash_algo == "SHA3_512":
+	if hash_algorithm == "SHA3_512":
 		hash_function_obj = hashes.SHA3_512()
 
 	return hash_function_obj
@@ -211,7 +217,6 @@ def x509_subject():
 	title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
-	print()
 
 	subject_fields = []
 
@@ -270,8 +275,8 @@ def x509_extensions(csr):
 	AuthorityInformationAccess: x509.AuthorityInformationAccess
 	PolicyConstraints: x509.PolicyConstraints
 	'''
-	print("==========X509 v3 Extensions==========" +"\n")
-	print("Type in (y/n) or leave blank if not required." + "\n")
+	print("\n==========X509 v3 Extensions==========\n")
+	print("Type in (y/n) or leave blank if not required.\n")
 
 	#SubjectAlternativeName: x509.SubjectAlternativeName
 	if yes_no_input("Would you like to add Subject Alternative Names? (y/n): "):
@@ -358,7 +363,6 @@ def x509_extensions(csr):
 			ku_ka = True
 			if yes_no_input("Encipher Only: "):
 				ku_eo = True
-
 			else:
 				ku_eo = False
 		
@@ -477,7 +481,7 @@ def x509_extensions(csr):
 
 	return csr
 
-def csr_builder(private_key,hash_algo):
+def csr_builder(private_key,hash_algorithm):
 	'''
 	This builds the CSR object.
 	'''
@@ -491,29 +495,26 @@ def csr_builder(private_key,hash_algo):
 		csr = x509_extensions(csr)
 				
 	#Build hash object
-	hash_function_obj = hash_builder(hash_algo)
+	hash_function_obj = hash_builder(hash_algorithm)
 
 	#Sign CSR
-	csr = csr.sign(private_key,hash_function_obj)
+	csr = csr.sign(private_key,hash_function_obj, backend=default_backend())
 
 	# Serialize CSR to PEM format
 	csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
 
 	# Convert bytes to a string
 	csr_pem_str = csr_pem.decode()
-	print("\n" +"Certificate signing request created:"+ "\n")
-	print(csr_pem_str)
+	print(f"\nCertificate signing request created:\n\n{csr_pem_str}")
 
 	return csr_pem
 
 def main():
 
 	'''
-	The Ultimate CSR tool is a CLI tool that allows you to define many different subject types and x509v3 extensions.
+	The Ultimate CSR tool is an interactive CLI tool that allows you to define many different subject types and x509v3 extensions.
 
 	By: pkiscape.com
-
-	Ref: https://cryptography.io/en/latest/x509/reference/
 	'''
 
 	argparse_main = argparse.ArgumentParser(description="X509 Certificate Signing Request Maker")
@@ -521,46 +522,42 @@ def main():
 	argparse_group = argparse_main.add_mutually_exclusive_group(required=True)
 
 	argparse_group.add_argument("-p","--private-key",nargs="?",help="Define your existing private key.")
-	argparse_group.add_argument("-ck","--create-key",nargs="?", default="", help="Creates a private key for you. If no name is provided, it uses privatekey.pem")
-	argparse_main.add_argument("-e","--encrypt", action="store_true", help="Encrypt the private key you create with -ck (--create_key)")
+	argparse_group.add_argument("-ck","--create-key",nargs="?", default="",help="Creates a private key for you. If no name is provided, it uses 'privatekey.pem'.")
+	argparse_main.add_argument("-ka", "--key-algorithm", type=str.upper, choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1","SECP521R1"], default="SECP384R1",
+		help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1). Valid values: RSA2048, RSA4096, SECP256R1, SECP384R1, SECP521R1")
+	argparse_main.add_argument("-e","--encrypt", action="store_true", help="Encrypt the private key you create with --create-key")
 	argparse_main.add_argument("-o","--out", help="Define the CSR output filename")
-	argparse_main.add_argument("-ha","--hash-algorithm", help="Define the hashing algorithm (Signature Algorithm). Default(SHA256). Valid values: SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512")
+	argparse_main.add_argument("-ha","--hash-algorithm", type=str.upper, default="SHA256",
+		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256). Valid values: SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512")
 	args = argparse_main.parse_args()
 		
-	print("\n" + "Welcome to the Ultimate CSR tool! By: pkiscape.com" + "\n")
-
-	if args.hash_algorithm:
-		args.hash_algorithm = args.hash_algorithm.upper()
-		valid_hashes = ["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"]
-		if args.hash_algorithm in valid_hashes:
-			hash_algo = args.hash_algorithm 
-
-		else:
-			print(f"Chosen algorithm {args.hash_algorithm} is not valid. \nHash algorithm must be one of these: SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512")
-			quit()
-	else:
-		hash_algo = "SHA256"
+	print(f"\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
 
 	if args.private_key:
-		private_key = load_private_key(args.private_key)
+		try:
+			private_key = load_private_key(args.private_key)
+
+		except FileNotFoundError:
+			print(f"Defined private key file '{args.private_key}' not found.")
+			quit()
 
 	if args.create_key:
 		check = private_key_checker(args.create_key)
 		if check == False:
-			private_key = create_private_key(args.create_key,args.encrypt)
+			private_key = create_private_key(args.create_key,args.encrypt,args.key_algorithm)
 
 	if args.create_key is None:
 		check = private_key_checker("privatekey.pem")
 		if check == False:
-			private_key = create_private_key("privatekey.pem",args.encrypt)
+			private_key = create_private_key("privatekey.pem",args.encrypt,args.key_algorithm)
 
 	try:
-		csr = csr_builder(private_key,hash_algo)
+		csr = csr_builder(private_key,args.hash_algorithm)
 
 		if args.out:
 			with open(args.out, "wb") as outfile:
 				outfile.write(csr)
-				print(f"CSR PEM written to {args.out}")
+				print(f"CSR PEM written to '{args.out}'")
 
 	except Exception as e:
 		print(f"Exception thrown: {e}")
