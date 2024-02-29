@@ -5,7 +5,7 @@
 Ultimate CSR tool
 =========================================
 
-@version    7
+@version    8
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
@@ -18,7 +18,7 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import ExtensionOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
@@ -28,24 +28,28 @@ from getpass import getpass
 
 Todo: Ideas
 
--verbosity
--longer/shorter prompts
-
+-Longer/shorter prompts
 '''
 
-def load_private_key(privatekey):
+def load_private_key(privatekey,verbosity):
 
 	'''
 	This function loads the passed private key. If it cannot load it, it asks for a password as the
 	private key may be encrypted.
 	'''
 
+	if verbosity:
+		print(f"Attempting to load private key: {privatekey}")
+
+
 	with open(privatekey, "rb") as private_key_file:
 		loaded_privatekey = private_key_file.read()
 
 	try:
 		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
-		#print(f"Loaded Private Key {privatekey}")
+		
+		if verbosity:
+			print(f"Loaded Private Key {privatekey} successfully")
 		return loaded_privatekey
 	except:
 		print("Is your private key encrypted? If so:")
@@ -61,11 +65,14 @@ def load_private_key(privatekey):
 			loaded_privatekey = "fail"
 			quit()
 
-def private_key_checker(filename: str):
+def private_key_checker(filename: str,verbosity):
 	'''
 	This function checks if you specified an existing private key to protect agianst 
 	overwriting an already created private key.
 	'''
+
+	if verbosity:
+		print(f"Checking if {filename} exists in running directory")
 
 	file_path = Path(filename)
 
@@ -77,16 +84,21 @@ def private_key_checker(filename: str):
 
 	else:
 		check = False
+		if verbosity:
+			print(f"{filename} doesn't exist, continuing...")
 
 	return check
 
-def create_private_key(private_key_filename: str, encrypt, key_algorithm):
+def create_private_key(private_key_filename: str, encrypt, key_algorithm,verbosity,private_key_format):
 	'''
 	Creates a private key. 
-	Default algorithm: SECP256R1 (NIST P-256)
+	Default algorithm: SECP384R1
 	
-	Valid Algorithms: "RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1"
+	Valid Algorithms: "RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1", "SECP256K1"
 	'''
+
+	if verbosity:
+		print(f"Creating Private Key with name {private_key_filename} with the {key_algorithm} algorithm. Encrypt: {encrypt}. Private Key Format: {private_key_format}")
 
 	if key_algorithm == "RSA2048":
 		private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048,backend=default_backend())
@@ -103,13 +115,29 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm):
 	if key_algorithm == "SECP521R1":
 		private_key = ec.generate_private_key(ec.SECP521R1(),backend=default_backend())
 
+	if key_algorithm == "SECP256K1":
+		private_key = ec.generate_private_key(ec.SECP256K1(), backend=default_backend())
+
+
+	private_key_format_full = "serialization.PrivateFormat."+ private_key_format
+
+	private_key_format_mapping = {
+	    "PKCS1": serialization.PrivateFormat.TraditionalOpenSSL,
+	    "PKCS8": serialization.PrivateFormat.PKCS8,
+	    "OPENSSH": serialization.PrivateFormat.OpenSSH
+	}
+	
+	private_key_format_enum = private_key_format_mapping.get(private_key_format)
+
 	if encrypt:
 		with open(private_key_filename, "wb") as file:
+			if verbosity:
+				print("Encrypting privatekey with 'BestAvailableEncryption' in PKCS8 format")
 			password = getpass("Enter the password you would like to use for the private key: ")
 			enc_algo = serialization.BestAvailableEncryption(password.encode())
 			private_key_bytes = private_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
-				format=serialization.PrivateFormat.PKCS8,
+				format=private_key_format_enum,
 				encryption_algorithm=enc_algo)
 			file.write(private_key_bytes)
 
@@ -117,11 +145,11 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm):
 		with open(private_key_filename, "wb") as file:
 			private_key_bytes = private_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
-	            format=serialization.PrivateFormat.TraditionalOpenSSL,
-	            encryption_algorithm=serialization.NoEncryption())
+				format=private_key_format_enum,
+				encryption_algorithm=serialization.NoEncryption())
 			file.write(private_key_bytes)
 
-	print(f"Created Private Key: '{private_key_filename}' using {key_algorithm}.\n")
+	print(f"Created Private Key: '{private_key_filename}' using {key_algorithm}. Format: PEM ({private_key_format})")
 	return private_key		
 
 def hash_builder(hash_algorithm):
@@ -198,7 +226,7 @@ def x509_subject():
 	This function defines the distinguished name for a given CSR. It returns the subject object.
 	'''
 	
-	print("==========Subject==========")
+	print("\n==========Subject==========")
 	print("Enter in each Subject field you require. Leave blank if not required." + "\n")
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
@@ -481,7 +509,7 @@ def x509_extensions(csr):
 
 	return csr
 
-def csr_builder(private_key,hash_algorithm):
+def csr_builder(private_key,hash_algorithm,verbosity):
 	'''
 	This builds the CSR object.
 	'''
@@ -495,12 +523,18 @@ def csr_builder(private_key,hash_algorithm):
 		csr = x509_extensions(csr)
 				
 	#Build hash object
+	if verbosity:
+		print(f"Selected Hash function {hash_algorithm}")
 	hash_function_obj = hash_builder(hash_algorithm)
 
 	#Sign CSR
+	if verbosity:
+		print("Signing CSR with private key")
 	csr = csr.sign(private_key,hash_function_obj, backend=default_backend())
 
 	# Serialize CSR to PEM format
+	if verbosity:
+		print("Serializing CSR to PEM format")
 	csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
 
 	# Convert bytes to a string
@@ -517,42 +551,60 @@ def main():
 	By: pkiscape.com
 	'''
 
-	argparse_main = argparse.ArgumentParser(description="X509 Certificate Signing Request Maker")
+	argparse_main = argparse.ArgumentParser(description="X.509 Certificate Signing Request Maker")
 
 	argparse_group = argparse_main.add_mutually_exclusive_group(required=True)
 
 	argparse_group.add_argument("-p","--private-key",nargs="?",help="Define your existing private key.")
 	argparse_group.add_argument("-ck","--create-key",nargs="?", default="",help="Creates a private key for you. If no name is provided, it uses 'privatekey.pem'.")
-	argparse_main.add_argument("-ka", "--key-algorithm", type=str.upper, choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1","SECP521R1"], default="SECP384R1",
-		help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1). Valid values: RSA2048, RSA4096, SECP256R1, SECP384R1, SECP521R1")
+	argparse_main.add_argument("-pkf","--private-key-format",type=str.upper, choices=["PKCS1","PKCS8","OPENSSH"], default="PKCS8",
+		help="When creating a private key with --create-key, choose the format it gets created. Default (PKCS8)")
+	argparse_main.add_argument("-ka", "--key-algorithm", type=str.upper, choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1","SECP521R1","SECP256K1"], default="SECP384R1",
+		help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1).")
 	argparse_main.add_argument("-e","--encrypt", action="store_true", help="Encrypt the private key you create with --create-key")
 	argparse_main.add_argument("-o","--out", help="Define the CSR output filename")
 	argparse_main.add_argument("-ha","--hash-algorithm", type=str.upper, default="SHA256",
-		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256). Valid values: SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512")
+		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256).")
+	argparse_main.add_argument("-v","--verbose",action="store_true",help="Enable verbosity (more wordiness)")
 	args = argparse_main.parse_args()
 		
 	print(f"\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
 
 	if args.private_key:
 		try:
-			private_key = load_private_key(args.private_key)
+			private_key = load_private_key(
+				privatekey=args.private_key,
+				verbosity=args.verbose)
 
 		except FileNotFoundError:
 			print(f"Defined private key file '{args.private_key}' not found.")
 			quit()
 
 	if args.create_key:
-		check = private_key_checker(args.create_key)
+		check = private_key_checker(filename=args.create_key,verbosity=args.verbose)
 		if check == False:
-			private_key = create_private_key(args.create_key,args.encrypt,args.key_algorithm)
+			private_key = create_private_key(
+				private_key_filename=args.create_key,
+				encrypt=args.encrypt,
+				key_algorithm=args.key_algorithm,
+				verbosity=args.verbose,
+				private_key_format=args.private_key_format)
 
 	if args.create_key is None:
-		check = private_key_checker("privatekey.pem")
+		check = private_key_checker(filename="privatekey.pem",verbosity=args.verbose)
 		if check == False:
-			private_key = create_private_key("privatekey.pem",args.encrypt,args.key_algorithm)
+			private_key = create_private_key(
+				private_key_filename="privatekey.pem",
+				encrypt=args.encrypt,
+				key_algorithm=args.key_algorithm,
+				verbosity=args.verbose,
+				private_key_format=args.private_key_format)
 
 	try:
-		csr = csr_builder(private_key,args.hash_algorithm)
+		csr = csr_builder(
+			private_key=private_key,
+			hash_algorithm=args.hash_algorithm,
+			verbosity=args.verbose)
 
 		if args.out:
 			with open(args.out, "wb") as outfile:
