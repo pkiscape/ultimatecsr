@@ -5,7 +5,7 @@
 Ultimate CSR tool
 =========================================
 
-@version    7
+@version    8
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
@@ -18,54 +18,106 @@ from pathlib import Path
 from cryptography import x509
 from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec
+from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
 from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import ExtensionOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
 from getpass import getpass
 
 '''
-
 Todo: Ideas
 
--verbosity
--longer/shorter prompts
-
+-Longer/shorter prompts
+-Custom Subjects and more
+-DER Private keys
+-silent mode
+-emojis
+https://cryptography.io/en/latest/x509/reference/#cryptography.x509.Name
 '''
 
-def load_private_key(privatekey):
+def load_private_key(private_key_filename,verbosity):
 
 	'''
-	This function loads the passed private key. If it cannot load it, it asks for a password as the
-	private key may be encrypted.
+	This function loads the passed private key filename
 	'''
 
-	with open(privatekey, "rb") as private_key_file:
-		loaded_privatekey = private_key_file.read()
+	if verbosity:
+		print(f"Attempting to load private key: {private_key_filename}")
 
-	try:
-		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
-		#print(f"Loaded Private Key {privatekey}")
-		return loaded_privatekey
-	except:
-		print("Is your private key encrypted? If so:")
-		password = getpass("Enter the password for the private key: ")
+	#Open Private key file
+	with open(private_key_filename, "rb") as private_key_file_opened:
+		loaded_privatekey = private_key_file_opened.read()
 
+	#Checking for encryption in the private key
+	if b"ENCRYPT" in loaded_privatekey:
 		try:
-			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey,password=password.encode(),backend=default_backend())
+			loaded_privatekey = load_enc_private_key(loaded_privatekey,verbosity,private_key_filename)
 			return loaded_privatekey
-			print("Encrypted private key loaded")
+		except Exception:
+			print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
+			quit()
+		
+	else:
+		try:
+			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
+			print(f"Loaded private key: '{private_key_filename}'")
+			return loaded_privatekey
 
 		except ValueError:
-			print("Incorrect password or unable to load the private key.")
-			loaded_privatekey = "fail"
-			quit()
+			try:
+				if verbosity:
+					print("Trying for the OpenSSH format. It could not load the format.")
+				loaded_privatekey = serialization.load_ssh_private_key(loaded_privatekey,password=None,backend=default_backend())
+				print(f"Loaded private key: '{private_key_filename}'")
+				return loaded_privatekey
 
-def private_key_checker(filename: str):
+			except:
+				# Last try will be to check if it's encrypted
+				try:
+					if verbosity:
+						print("Could not load using any other method. Checking if it's encrypted")
+					loaded_privatekey = load_enc_private_key(loaded_privatekey,verbosity,private_key_filename)
+					return loaded_privatekey
+				except:
+					print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
+					quit()
+		
+		
+def load_enc_private_key(enc_private_key,verbosity,private_key_filename):
+	'''
+	Attempted to load an encrypted private key
+	'''
+	if verbosity:
+		print("It seems like the private key is encrypted")
+	password = getpass("Enter the password for the private key: ")
+	try:
+		loaded_privatekey = serialization.load_pem_private_key(enc_private_key,password=password.encode(),backend=default_backend())
+		print(f"Encrypted private key '{private_key_filename}'' loaded")
+		return loaded_privatekey
+
+	except ValueError:
+		if verbosity:
+			print("Trying for the OpenSSH format. It could not load the format.")
+		try:
+			loaded_privatekey = serialization.load_ssh_private_key(enc_private_key,password=password.encode(),backend=default_backend())
+			print(f"Encrypted private key '{private_key_filename}' loaded")
+			return loaded_privatekey
+		except:
+			if verbosity:
+				print("Trying with password without encoding")
+			loaded_privatekey = serialization.load_ssh_private_key(enc_private_key,password=password,backend=default_backend())
+			print(f"Encrypted private key '{private_key_filename}' loaded")
+			return loaded_privatekey
+
+
+def private_key_checker(filename: str,verbosity):
 	'''
 	This function checks if you specified an existing private key to protect agianst 
 	overwriting an already created private key.
 	'''
+
+	if verbosity:
+		print(f"Checking if {filename} exists in running directory")
 
 	file_path = Path(filename)
 
@@ -77,16 +129,21 @@ def private_key_checker(filename: str):
 
 	else:
 		check = False
+		if verbosity:
+			print(f"{filename} doesn't exist, continuing...")
 
 	return check
 
-def create_private_key(private_key_filename: str, encrypt, key_algorithm):
+def create_private_key(private_key_filename: str, encrypt, key_algorithm,verbosity,private_key_format):
 	'''
 	Creates a private key. 
-	Default algorithm: SECP256R1 (NIST P-256)
+	Default algorithm: SECP384R1
 	
-	Valid Algorithms: "RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1"
+	Valid Algorithms: "RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1", "SECP256K1"
 	'''
+
+	if verbosity:
+		print(f"Creating Private Key with name {private_key_filename} with the {key_algorithm} algorithm. Encrypt: {encrypt}. Private Key Format: {private_key_format}")
 
 	if key_algorithm == "RSA2048":
 		private_key = rsa.generate_private_key(public_exponent=65537,key_size=2048,backend=default_backend())
@@ -103,25 +160,49 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm):
 	if key_algorithm == "SECP521R1":
 		private_key = ec.generate_private_key(ec.SECP521R1(),backend=default_backend())
 
+	if key_algorithm == "SECP256K1":
+		private_key = ec.generate_private_key(ec.SECP256K1(), backend=default_backend())
+
+
+	private_key_format_full = "serialization.PrivateFormat."+ private_key_format
+
+	private_key_format_mapping = {
+	    "PKCS1": serialization.PrivateFormat.TraditionalOpenSSL,
+	    "PKCS8": serialization.PrivateFormat.PKCS8,
+	    "OPENSSH": serialization.PrivateFormat.OpenSSH
+	}
+	
+	private_key_format_enum = private_key_format_mapping.get(private_key_format)
+
 	if encrypt:
+		# If the private key format is OPENSSH, bcrypt is required (pip install bcrypt)
 		with open(private_key_filename, "wb") as file:
+			if verbosity:
+				print("Encrypting privatekey with 'BestAvailableEncryption'")
 			password = getpass("Enter the password you would like to use for the private key: ")
 			enc_algo = serialization.BestAvailableEncryption(password.encode())
-			private_key_bytes = private_key.private_bytes(
-				encoding=serialization.Encoding.PEM,
-				format=serialization.PrivateFormat.PKCS8,
-				encryption_algorithm=enc_algo)
-			file.write(private_key_bytes)
+
+			try:
+				private_key_bytes = private_key.private_bytes(
+					encoding=serialization.Encoding.PEM,
+					format=private_key_format_enum,
+					encryption_algorithm=enc_algo)
+				file.write(private_key_bytes)
+			except Exception as unsupported_algo_exception:
+				if "bcrypt" in str(unsupported_algo_exception):
+					print(f"Error: {unsupported_algo_exception}. The Python Cryptography library uses another library called bcrypt for encrypting OpenSSH keys")
+					print("For installation, please check out: https://pypi.org/project/bcrypt/")
+					quit()
 
 	else:
 		with open(private_key_filename, "wb") as file:
 			private_key_bytes = private_key.private_bytes(
 				encoding=serialization.Encoding.PEM,
-	            format=serialization.PrivateFormat.TraditionalOpenSSL,
-	            encryption_algorithm=serialization.NoEncryption())
+				format=private_key_format_enum,
+				encryption_algorithm=serialization.NoEncryption())
 			file.write(private_key_bytes)
 
-	print(f"Created Private Key: '{private_key_filename}' using {key_algorithm}.\n")
+	print(f"Created Private Key: '{private_key_filename}' using {key_algorithm}. Format: PEM ({private_key_format})")
 	return private_key		
 
 def hash_builder(hash_algorithm):
@@ -198,8 +279,8 @@ def x509_subject():
 	This function defines the distinguished name for a given CSR. It returns the subject object.
 	'''
 	
-	print("==========Subject==========")
-	print("Enter in each Subject field you require. Leave blank if not required." + "\n")
+	print("\n==========Distinguished Name==========\nEnter in each type you require. Leave blank if not required.\n")
+
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
 	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
@@ -218,44 +299,44 @@ def x509_subject():
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
 
-	subject_fields = []
+	dn_types = []
 
 	if cn:
-		subject_fields.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+		dn_types.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
 	if country:
-		subject_fields.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
+		dn_types.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
 	if state:
-		subject_fields.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
+		dn_types.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
 	if street:
-		subject_fields.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
+		dn_types.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
 	if postalcode:
-		subject_fields.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
+		dn_types.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
 	if locality:
-		subject_fields.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
+		dn_types.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
 	if orgname:
-		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
+		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
 	if orgunit:
-		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
+		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
 	if dc:
-		subject_fields.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
+		dn_types.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
 	if email:
-		subject_fields.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
+		dn_types.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
 	if userid:
-		subject_fields.append(x509.NameAttribute(NameOID.USER_ID, userid))
+		dn_types.append(x509.NameAttribute(NameOID.USER_ID, userid))
 	if givenname:
-		subject_fields.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+		dn_types.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
 	if initials:
-		subject_fields.append(x509.NameAttribute(NameOID.INITIALS, initials))	
+		dn_types.append(x509.NameAttribute(NameOID.INITIALS, initials))	
 	if surname:
-		subject_fields.append(x509.NameAttribute(NameOID.SURNAME, surname))
+		dn_types.append(x509.NameAttribute(NameOID.SURNAME, surname))
 	if title:
-		subject_fields.append(x509.NameAttribute(NameOID.TITLE, title))
+		dn_types.append(x509.NameAttribute(NameOID.TITLE, title))
 	if pseudonym:
-		subject_fields.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
+		dn_types.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
 	if unstructured:
-		subject_fields.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
+		dn_types.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
 
-	subject = x509.Name(subject_fields)
+	subject = x509.Name(dn_types)
 
 	return subject
 
@@ -275,8 +356,7 @@ def x509_extensions(csr):
 	AuthorityInformationAccess: x509.AuthorityInformationAccess
 	PolicyConstraints: x509.PolicyConstraints
 	'''
-	print("\n==========X509 v3 Extensions==========\n")
-	print("Type in (y/n) or leave blank if not required.\n")
+	print("\n==========X509 v3 Extensions==========\nType in (y/n) or leave blank if not required.\n")
 
 	#SubjectAlternativeName: x509.SubjectAlternativeName
 	if yes_no_input("Would you like to add Subject Alternative Names? (y/n): "):
@@ -481,12 +561,12 @@ def x509_extensions(csr):
 
 	return csr
 
-def csr_builder(private_key,hash_algorithm):
+def csr_builder(private_key,hash_algorithm,verbosity):
 	'''
 	This builds the CSR object.
 	'''
 
-	#Add Subject
+	#Add Distinguished Name
 	subject = x509_subject()
 	csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
 
@@ -495,12 +575,18 @@ def csr_builder(private_key,hash_algorithm):
 		csr = x509_extensions(csr)
 				
 	#Build hash object
+	if verbosity:
+		print(f"Selected Hash function {hash_algorithm}")
 	hash_function_obj = hash_builder(hash_algorithm)
 
 	#Sign CSR
+	if verbosity:
+		print("Signing CSR with private key")
 	csr = csr.sign(private_key,hash_function_obj, backend=default_backend())
 
 	# Serialize CSR to PEM format
+	if verbosity:
+		print("Serializing CSR to PEM format")
 	csr_pem = csr.public_bytes(encoding=serialization.Encoding.PEM)
 
 	# Convert bytes to a string
@@ -512,47 +598,65 @@ def csr_builder(private_key,hash_algorithm):
 def main():
 
 	'''
-	The Ultimate CSR tool is an interactive CLI tool that allows you to define many different subject types and x509v3 extensions.
+	The Ultimate CSR tool is an interactive CLI tool that allows you to define many different distinguished name types and x509v3 extensions.
 
 	By: pkiscape.com
 	'''
 
-	argparse_main = argparse.ArgumentParser(description="X509 Certificate Signing Request Maker")
+	argparse_main = argparse.ArgumentParser(description="X.509 Certificate Signing Request Maker")
 
 	argparse_group = argparse_main.add_mutually_exclusive_group(required=True)
 
 	argparse_group.add_argument("-p","--private-key",nargs="?",help="Define your existing private key.")
 	argparse_group.add_argument("-ck","--create-key",nargs="?", default="",help="Creates a private key for you. If no name is provided, it uses 'privatekey.pem'.")
-	argparse_main.add_argument("-ka", "--key-algorithm", type=str.upper, choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1","SECP521R1"], default="SECP384R1",
-		help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1). Valid values: RSA2048, RSA4096, SECP256R1, SECP384R1, SECP521R1")
+	argparse_main.add_argument("-pkf","--private-key-format",type=str.upper, choices=["PKCS1","PKCS8","OPENSSH"], default="PKCS8",
+		help="When creating a private key with --create-key, choose the format it gets created. Default (PKCS8)")
+	argparse_main.add_argument("-ka", "--key-algorithm", type=str.upper, choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1","SECP521R1","SECP256K1"], default="SECP384R1",
+		help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1).")
 	argparse_main.add_argument("-e","--encrypt", action="store_true", help="Encrypt the private key you create with --create-key")
 	argparse_main.add_argument("-o","--out", help="Define the CSR output filename")
 	argparse_main.add_argument("-ha","--hash-algorithm", type=str.upper, default="SHA256",
-		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256). Valid values: SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512")
+		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256).")
+	argparse_main.add_argument("-v","--verbose",action="store_true",help="Enable verbosity (more wordiness)")
 	args = argparse_main.parse_args()
 		
 	print(f"\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
 
 	if args.private_key:
 		try:
-			private_key = load_private_key(args.private_key)
+			private_key = load_private_key(
+				private_key_filename=args.private_key,
+				verbosity=args.verbose)
 
 		except FileNotFoundError:
 			print(f"Defined private key file '{args.private_key}' not found.")
 			quit()
 
 	if args.create_key:
-		check = private_key_checker(args.create_key)
+		check = private_key_checker(filename=args.create_key,verbosity=args.verbose)
 		if check == False:
-			private_key = create_private_key(args.create_key,args.encrypt,args.key_algorithm)
+			private_key = create_private_key(
+				private_key_filename=args.create_key,
+				encrypt=args.encrypt,
+				key_algorithm=args.key_algorithm,
+				verbosity=args.verbose,
+				private_key_format=args.private_key_format)
 
 	if args.create_key is None:
-		check = private_key_checker("privatekey.pem")
+		check = private_key_checker(filename="privatekey.pem",verbosity=args.verbose)
 		if check == False:
-			private_key = create_private_key("privatekey.pem",args.encrypt,args.key_algorithm)
+			private_key = create_private_key(
+				private_key_filename="privatekey.pem",
+				encrypt=args.encrypt,
+				key_algorithm=args.key_algorithm,
+				verbosity=args.verbose,
+				private_key_format=args.private_key_format)
 
 	try:
-		csr = csr_builder(private_key,args.hash_algorithm)
+		csr = csr_builder(
+			private_key=private_key,
+			hash_algorithm=args.hash_algorithm,
+			verbosity=args.verbose)
 
 		if args.out:
 			with open(args.out, "wb") as outfile:
