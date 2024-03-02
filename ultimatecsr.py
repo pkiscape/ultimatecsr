@@ -25,45 +25,90 @@ from cryptography.hazmat.backends import default_backend #For older versions of 
 from getpass import getpass
 
 '''
-
 Todo: Ideas
 
 -Longer/shorter prompts
+-Custom Subjects and more
+-DER Private keys
+-silent mode
+-emojis
+https://cryptography.io/en/latest/x509/reference/#cryptography.x509.Name
 '''
 
-def load_private_key(privatekey,verbosity):
+def load_private_key(private_key_filename,verbosity):
 
 	'''
-	This function loads the passed private key. If it cannot load it, it asks for a password as the
-	private key may be encrypted.
+	This function loads the passed private key filename
 	'''
 
 	if verbosity:
-		print(f"Attempting to load private key: {privatekey}")
+		print(f"Attempting to load private key: {private_key_filename}")
 
+	#Open Private key file
+	with open(private_key_filename, "rb") as private_key_file_opened:
+		loaded_privatekey = private_key_file_opened.read()
 
-	with open(privatekey, "rb") as private_key_file:
-		loaded_privatekey = private_key_file.read()
-
-	try:
-		loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
-		
-		if verbosity:
-			print(f"Loaded Private Key {privatekey} successfully")
-		return loaded_privatekey
-	except:
-		print("Is your private key encrypted? If so:")
-		password = getpass("Enter the password for the private key: ")
-
+	#Checking for encryption in the private key
+	if b"ENCRYPT" in loaded_privatekey:
 		try:
-			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey,password=password.encode(),backend=default_backend())
+			loaded_privatekey = load_enc_private_key(loaded_privatekey,verbosity,private_key_filename)
 			return loaded_privatekey
-			print("Encrypted private key loaded")
+		except Exception:
+			print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
+			quit()
+		
+	else:
+		try:
+			loaded_privatekey = serialization.load_pem_private_key(loaded_privatekey, password=None, backend=default_backend())
+			print(f"Loaded private key: '{private_key_filename}'")
+			return loaded_privatekey
 
 		except ValueError:
-			print("Incorrect password or unable to load the private key.")
-			loaded_privatekey = "fail"
-			quit()
+			try:
+				if verbosity:
+					print("Trying for the OpenSSH format. It could not load the format.")
+				loaded_privatekey = serialization.load_ssh_private_key(loaded_privatekey,password=None,backend=default_backend())
+				print(f"Loaded private key: '{private_key_filename}'")
+				return loaded_privatekey
+
+			except:
+				# Last try will be to check if it's encrypted
+				try:
+					if verbosity:
+						print("Could not load using any other method. Checking if it's encrypted")
+					loaded_privatekey = load_enc_private_key(loaded_privatekey,verbosity,private_key_filename)
+					return loaded_privatekey
+				except:
+					print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
+					quit()
+		
+		
+def load_enc_private_key(enc_private_key,verbosity,private_key_filename):
+	'''
+	Attempted to load an encrypted private key
+	'''
+	if verbosity:
+		print("It seems like the private key is encrypted")
+	password = getpass("Enter the password for the private key: ")
+	try:
+		loaded_privatekey = serialization.load_pem_private_key(enc_private_key,password=password.encode(),backend=default_backend())
+		print(f"Encrypted private key '{private_key_filename}'' loaded")
+		return loaded_privatekey
+
+	except ValueError:
+		if verbosity:
+			print("Trying for the OpenSSH format. It could not load the format.")
+		try:
+			loaded_privatekey = serialization.load_ssh_private_key(enc_private_key,password=password.encode(),backend=default_backend())
+			print(f"Encrypted private key '{private_key_filename}' loaded")
+			return loaded_privatekey
+		except:
+			if verbosity:
+				print("Trying with password without encoding")
+			loaded_privatekey = serialization.load_ssh_private_key(enc_private_key,password=password,backend=default_backend())
+			print(f"Encrypted private key '{private_key_filename}' loaded")
+			return loaded_privatekey
+
 
 def private_key_checker(filename: str,verbosity):
 	'''
@@ -130,16 +175,24 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm,verbosi
 	private_key_format_enum = private_key_format_mapping.get(private_key_format)
 
 	if encrypt:
+		# If the private key format is OPENSSH, bcrypt is required (pip install bcrypt)
 		with open(private_key_filename, "wb") as file:
 			if verbosity:
-				print("Encrypting privatekey with 'BestAvailableEncryption' in PKCS8 format")
+				print("Encrypting privatekey with 'BestAvailableEncryption'")
 			password = getpass("Enter the password you would like to use for the private key: ")
 			enc_algo = serialization.BestAvailableEncryption(password.encode())
-			private_key_bytes = private_key.private_bytes(
-				encoding=serialization.Encoding.PEM,
-				format=private_key_format_enum,
-				encryption_algorithm=enc_algo)
-			file.write(private_key_bytes)
+
+			try:
+				private_key_bytes = private_key.private_bytes(
+					encoding=serialization.Encoding.PEM,
+					format=private_key_format_enum,
+					encryption_algorithm=enc_algo)
+				file.write(private_key_bytes)
+			except Exception as unsupported_algo_exception:
+				if "bcrypt" in str(unsupported_algo_exception):
+					print(f"Error: {unsupported_algo_exception}. The Python Cryptography library uses another library called bcrypt for encrypting OpenSSH keys")
+					print("For installation, please check out: https://pypi.org/project/bcrypt/")
+					quit()
 
 	else:
 		with open(private_key_filename, "wb") as file:
@@ -226,8 +279,8 @@ def x509_subject():
 	This function defines the distinguished name for a given CSR. It returns the subject object.
 	'''
 	
-	print("\n==========Subject==========")
-	print("Enter in each Subject field you require. Leave blank if not required." + "\n")
+	print("\n==========Distinguished Name==========\nEnter in each type you require. Leave blank if not required.\n")
+
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
 	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
@@ -246,44 +299,44 @@ def x509_subject():
 	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
 	unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
 
-	subject_fields = []
+	dn_types = []
 
 	if cn:
-		subject_fields.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
+		dn_types.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
 	if country:
-		subject_fields.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
+		dn_types.append(x509.NameAttribute(NameOID.COUNTRY_NAME, country))
 	if state:
-		subject_fields.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
+		dn_types.append(x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, state))
 	if street:
-		subject_fields.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
+		dn_types.append(x509.NameAttribute(NameOID.STREET_ADDRESS, street))
 	if postalcode:
-		subject_fields.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
+		dn_types.append(x509.NameAttribute(NameOID.POSTAL_CODE, postalcode))
 	if locality:
-		subject_fields.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
+		dn_types.append(x509.NameAttribute(NameOID.LOCALITY_NAME, locality))
 	if orgname:
-		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
+		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
 	if orgunit:
-		subject_fields.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
+		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
 	if dc:
-		subject_fields.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
+		dn_types.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
 	if email:
-		subject_fields.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
+		dn_types.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
 	if userid:
-		subject_fields.append(x509.NameAttribute(NameOID.USER_ID, userid))
+		dn_types.append(x509.NameAttribute(NameOID.USER_ID, userid))
 	if givenname:
-		subject_fields.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+		dn_types.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
 	if initials:
-		subject_fields.append(x509.NameAttribute(NameOID.INITIALS, initials))	
+		dn_types.append(x509.NameAttribute(NameOID.INITIALS, initials))	
 	if surname:
-		subject_fields.append(x509.NameAttribute(NameOID.SURNAME, surname))
+		dn_types.append(x509.NameAttribute(NameOID.SURNAME, surname))
 	if title:
-		subject_fields.append(x509.NameAttribute(NameOID.TITLE, title))
+		dn_types.append(x509.NameAttribute(NameOID.TITLE, title))
 	if pseudonym:
-		subject_fields.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
+		dn_types.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
 	if unstructured:
-		subject_fields.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
+		dn_types.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
 
-	subject = x509.Name(subject_fields)
+	subject = x509.Name(dn_types)
 
 	return subject
 
@@ -303,8 +356,7 @@ def x509_extensions(csr):
 	AuthorityInformationAccess: x509.AuthorityInformationAccess
 	PolicyConstraints: x509.PolicyConstraints
 	'''
-	print("\n==========X509 v3 Extensions==========\n")
-	print("Type in (y/n) or leave blank if not required.\n")
+	print("\n==========X509 v3 Extensions==========\nType in (y/n) or leave blank if not required.\n")
 
 	#SubjectAlternativeName: x509.SubjectAlternativeName
 	if yes_no_input("Would you like to add Subject Alternative Names? (y/n): "):
@@ -514,7 +566,7 @@ def csr_builder(private_key,hash_algorithm,verbosity):
 	This builds the CSR object.
 	'''
 
-	#Add Subject
+	#Add Distinguished Name
 	subject = x509_subject()
 	csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
 
@@ -546,7 +598,7 @@ def csr_builder(private_key,hash_algorithm,verbosity):
 def main():
 
 	'''
-	The Ultimate CSR tool is an interactive CLI tool that allows you to define many different subject types and x509v3 extensions.
+	The Ultimate CSR tool is an interactive CLI tool that allows you to define many different distinguished name types and x509v3 extensions.
 
 	By: pkiscape.com
 	'''
@@ -573,7 +625,7 @@ def main():
 	if args.private_key:
 		try:
 			private_key = load_private_key(
-				privatekey=args.private_key,
+				private_key_filename=args.private_key,
 				verbosity=args.verbose)
 
 		except FileNotFoundError:
