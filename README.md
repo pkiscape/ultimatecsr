@@ -18,6 +18,7 @@ Possible Parameters:
 -ka, --key-algorithm [RSA2048,RSA4096,SECP256R1,SECP384R1,SECP521R1,SECP256K1] | Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1)
 -ha, --hash-algorithm [SHA224,SHA256,SHA384,SHA512,SHA3_224,SHA3_256,SHA3_384,SHA3_512] | Define the hashing algorithm (Signature Algorithm). Default(SHA256).
 -v, --verbose | Enable verbosity (more wordiness)
+-m, --mode [short, long] | Short prompt mode: Only display common distringuished names. Skips extensions. Default(long)
 -h, --help | Display help message   
 ```
 
