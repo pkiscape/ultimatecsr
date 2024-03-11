@@ -5,7 +5,7 @@
 Ultimate CSR tool
 =========================================
 
-@version    8
+@version    9
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
@@ -16,23 +16,19 @@ import textwrap
 import ipaddress
 from pathlib import Path
 from cryptography import x509
-from cryptography.x509.oid import NameOID
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
 from cryptography.hazmat.primitives import hashes
-from cryptography.x509.oid import ExtensionOID
+from cryptography.x509.oid import ExtensionOID, AttributeOID, NameOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
 from getpass import getpass
 
 '''
 Todo: Ideas
 
--Longer/shorter prompts
--Custom Subjects and more
+-More custom OIDs?
 -DER Private keys
--silent mode
--emojis
-https://cryptography.io/en/latest/x509/reference/#cryptography.x509.Name
+-self sign option
 '''
 
 def load_private_key(private_key_filename,verbosity):
@@ -81,8 +77,7 @@ def load_private_key(private_key_filename,verbosity):
 				except:
 					print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
 					quit()
-		
-		
+				
 def load_enc_private_key(enc_private_key,verbosity,private_key_filename):
 	'''
 	Attempted to load an encrypted private key
@@ -108,7 +103,6 @@ def load_enc_private_key(enc_private_key,verbosity,private_key_filename):
 			loaded_privatekey = serialization.load_ssh_private_key(enc_private_key,password=password,backend=default_backend())
 			print(f"Encrypted private key '{private_key_filename}' loaded")
 			return loaded_privatekey
-
 
 def private_key_checker(filename: str,verbosity):
 	'''
@@ -273,13 +267,16 @@ def integer_input(prompt):
 		except ValueError:
 			print("Please enter in an integer.")
 
-def x509_subject():
+def x509_subject(verbosity,mode):
 
 	'''
 	This function defines the distinguished name for a given CSR. It returns the subject object.
 	'''
 	
 	print("\n==========Distinguished Name==========\nEnter in each type you require. Leave blank if not required.\n")
+
+	if verbosity:
+		print("These are single-valued relative distinguished names (RDNs). Based on rfc4514\n")
 
 	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
 	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
@@ -289,18 +286,21 @@ def x509_subject():
 	locality = input(u"Locality Name: ") #NameOID.LOCALITY_NAME: Locality Name
 	orgname = input(u"Organization Name: ") #NameOID.ORGANIZATION_NAME: Organization Name
 	orgunit = input(u"Organizational Unit Name: ") #NameOID.ORGANIZATIONAL_UNIT_NAME: Organizational Unit Name
-	dc = input(u"Domain Component: ") #NameOID.DOMAIN_COMPONENT
 	email = input(u"Email Address: ") #NameOID.EMAIL_ADDRESS: Email Address
-	userid = input(u"UserID: ") #NameOID.USER_ID
-	givenname = input(u"Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
-	initials = input(u"Initials: ") #NameOID.INITIALS: Initials of Given Names 
-	surname = input(u"Surname: ") #NameOID.SURNAME: Surname or Family Name
-	title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
-	pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
-	unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
+
+	if mode == "long":
+		dc = input(u"Domain Component: ") #NameOID.DOMAIN_COMPONENT
+		userid = input(u"UserID: ") #NameOID.USER_ID
+		givenname = input(u"Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
+		initials = input(u"Initials: ") #NameOID.INITIALS: Initials of Given Names 
+		surname = input(u"Surname: ") #NameOID.SURNAME: Surname or Family Name
+		title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
+		pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
+		unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
 
 	dn_types = []
 
+	#These build the RDNs and append them to the dn_types list
 	if cn:
 		dn_types.append(x509.NameAttribute(NameOID.COMMON_NAME, cn))
 	if country:
@@ -317,24 +317,44 @@ def x509_subject():
 		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATION_NAME, orgname))
 	if orgunit:
 		dn_types.append(x509.NameAttribute(NameOID.ORGANIZATIONAL_UNIT_NAME, orgunit))
-	if dc:
-		dn_types.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
 	if email:
 		dn_types.append(x509.NameAttribute(NameOID.EMAIL_ADDRESS, email))
-	if userid:
-		dn_types.append(x509.NameAttribute(NameOID.USER_ID, userid))
-	if givenname:
-		dn_types.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
-	if initials:
-		dn_types.append(x509.NameAttribute(NameOID.INITIALS, initials))	
-	if surname:
-		dn_types.append(x509.NameAttribute(NameOID.SURNAME, surname))
-	if title:
-		dn_types.append(x509.NameAttribute(NameOID.TITLE, title))
-	if pseudonym:
-		dn_types.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
-	if unstructured:
-		dn_types.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
+
+	if mode == "long":
+		if dc:
+			dn_types.append(x509.NameAttribute(NameOID.DOMAIN_COMPONENT, dc))
+		if userid:
+			dn_types.append(x509.NameAttribute(NameOID.USER_ID, userid))
+		if givenname:
+			dn_types.append(x509.NameAttribute(NameOID.GIVEN_NAME, givenname))
+		if initials:
+			dn_types.append(x509.NameAttribute(NameOID.INITIALS, initials))	
+		if surname:
+			dn_types.append(x509.NameAttribute(NameOID.SURNAME, surname))
+		if title:
+			dn_types.append(x509.NameAttribute(NameOID.TITLE, title))
+		if pseudonym:
+			dn_types.append(x509.NameAttribute(NameOID.PSEUDONYM, pseudonym))
+		if unstructured:
+			dn_types.append(x509.NameAttribute(NameOID.UNSTRUCTURED_NAME, unstructured))
+
+	if mode == "long":
+		if verbosity:
+			print("This section defines Custom OIDs for the Distinguished Name (single attribute RDNs). Multi-valued RDNs are not supported yet")
+		if yes_no_input("Would you like to request custom Subject OIDs and values? (y/n):"):
+			custom_dn_oids_amount = integer_input("How many? Enter in an integer: ")
+			for custom_oid in range(custom_dn_oids_amount):
+				while True:
+					try:
+						name_oid = input("Enter in your OID: ")
+						built_name_oid = x509.ObjectIdentifier(name_oid)
+						break
+
+					except ValueError:
+						print("Enter in a valid OID")
+				
+				name_value = input("Enter in the value for the OID: ")
+				dn_types.append(x509.NameAttribute(built_name_oid, name_value))
 
 	subject = x509.Name(dn_types)
 
@@ -561,28 +581,36 @@ def x509_extensions(csr):
 
 	return csr
 
-def csr_builder(private_key,hash_algorithm,verbosity):
+def csr_builder(private_key,hash_algorithm,verbosity,mode):
 	'''
-	This builds the CSR object.
+	This builds the CSR object. It returns a list. In [0], it contains the object and in [1], the PEM CSR.
 	'''
+	csr_list = []
 
-	#Add Distinguished Name
-	subject = x509_subject()
+	#Add Distinguished Name (subject)
+	subject = x509_subject(verbosity=verbosity,mode=mode)
 	csr = x509.CertificateSigningRequestBuilder().subject_name(subject)
 
-	#Pass CSR to x509_extensions(), add v3 extensions, return CSR
-	if yes_no_input("Would you like to request x509v3 Extensions? (y/n):"):
-		csr = x509_extensions(csr)
+	if mode == "long":
+		#Pass CSR to x509_extensions(), add v3 extensions, return CSR
+		if yes_no_input("Would you like to request x509v3 Extensions? (y/n):"):
+			csr = x509_extensions(csr=csr)
 				
 	#Build hash object
 	if verbosity:
 		print(f"Selected Hash function {hash_algorithm}")
 	hash_function_obj = hash_builder(hash_algorithm)
 
+	#Add challenge password
+	if yes_no_input("Would you like to add a Challenge Password? (y/n):"):
+		password = getpass("Enter the password you would like to use for the challenge: ").encode()
+		csr = csr.add_attribute(AttributeOID.CHALLENGE_PASSWORD, password) 
+
 	#Sign CSR
 	if verbosity:
 		print("Signing CSR with private key")
 	csr = csr.sign(private_key,hash_function_obj, backend=default_backend())
+	csr_list.append(csr)
 
 	# Serialize CSR to PEM format
 	if verbosity:
@@ -592,8 +620,9 @@ def csr_builder(private_key,hash_algorithm,verbosity):
 	# Convert bytes to a string
 	csr_pem_str = csr_pem.decode()
 	print(f"\nCertificate signing request created:\n\n{csr_pem_str}")
+	csr_list.append(csr_pem)
 
-	return csr_pem
+	return csr_list
 
 def main():
 
@@ -618,6 +647,7 @@ def main():
 	argparse_main.add_argument("-ha","--hash-algorithm", type=str.upper, default="SHA256",
 		choices=["SHA224","SHA256","SHA384","SHA512","SHA3_224","SHA3_256","SHA3_384","SHA3_512"],help="Define the hashing algorithm (Signature Algorithm). Default(SHA256).")
 	argparse_main.add_argument("-v","--verbose",action="store_true",help="Enable verbosity (more wordiness)")
+	argparse_main.add_argument("-m","--mode",type=str.lower,choices=["short","long"], default="long",help="Short prompt mode: Only display common distringuished names. Skips extensions")
 	args = argparse_main.parse_args()
 		
 	print(f"\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
@@ -653,18 +683,21 @@ def main():
 				private_key_format=args.private_key_format)
 
 	try:
-		csr = csr_builder(
+		#This builds the CSR. It returns a list. In [0], it contains the object and in [1], the PEM CSR.
+		csr_list = csr_builder(
 			private_key=private_key,
 			hash_algorithm=args.hash_algorithm,
-			verbosity=args.verbose)
+			verbosity=args.verbose,
+			mode=args.mode)
 
 		if args.out:
 			with open(args.out, "wb") as outfile:
-				outfile.write(csr)
+				outfile.write(csr_list[1])
 				print(f"CSR PEM written to '{args.out}'")
-
+	
 	except Exception as e:
 		print(f"Exception thrown: {e}")
+
 
 if __name__ == '__main__':
 	main()
