@@ -5,31 +5,24 @@
 Ultimate CSR tool
 =========================================
 
-@version    9
+@version    10
 @author     pkiscape.com
 @link	    https://github.com/pkiscape
 
 '''
 
 import argparse
-import textwrap
 import ipaddress
+import sys
 from pathlib import Path
+from getpass import getpass
 from cryptography import x509
 from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa, ec, ed25519
+from cryptography.hazmat.primitives.asymmetric import rsa, ec
 from cryptography.hazmat.primitives import hashes
-from cryptography.x509.oid import ExtensionOID, AttributeOID, NameOID
+from cryptography.x509.oid import AttributeOID, NameOID
 from cryptography.hazmat.backends import default_backend #For older versions of cryptography
-from getpass import getpass
 
-'''
-Todo: Ideas
-
--More custom OIDs?
--DER Private keys
--self sign option
-'''
 
 def load_private_key(private_key_filename,verbosity):
 
@@ -51,7 +44,7 @@ def load_private_key(private_key_filename,verbosity):
 			return loaded_privatekey
 		except Exception:
 			print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
-			quit()
+			sys.exit()
 		
 	else:
 		try:
@@ -76,7 +69,7 @@ def load_private_key(private_key_filename,verbosity):
 					return loaded_privatekey
 				except:
 					print("Could not load the private key. Please make sure you entered the correct password and defined the correct file.")
-					quit()
+					sys.exit()
 				
 def load_enc_private_key(enc_private_key,verbosity,private_key_filename):
 	'''
@@ -119,7 +112,7 @@ def private_key_checker(filename: str,verbosity):
 		print(f"The file '{filename}' exists. Specify a new name for the private key you want to create.")
 		print(f"If '{filename}' is a private key you want to use, use the -p (--privatekey) parameter instead.\n")
 		check = True
-		quit()
+		sys.exit()
 
 	else:
 		check = False
@@ -157,9 +150,6 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm,verbosi
 	if key_algorithm == "SECP256K1":
 		private_key = ec.generate_private_key(ec.SECP256K1(), backend=default_backend())
 
-
-	private_key_format_full = "serialization.PrivateFormat."+ private_key_format
-
 	private_key_format_mapping = {
 	    "PKCS1": serialization.PrivateFormat.TraditionalOpenSSL,
 	    "PKCS8": serialization.PrivateFormat.PKCS8,
@@ -186,7 +176,7 @@ def create_private_key(private_key_filename: str, encrypt, key_algorithm,verbosi
 				if "bcrypt" in str(unsupported_algo_exception):
 					print(f"Error: {unsupported_algo_exception}. The Python Cryptography library uses another library called bcrypt for encrypting OpenSSH keys")
 					print("For installation, please check out: https://pypi.org/project/bcrypt/")
-					quit()
+					sys.exit()
 
 	else:
 		with open(private_key_filename, "wb") as file:
@@ -278,25 +268,25 @@ def x509_subject(verbosity,mode):
 	if verbosity:
 		print("These are single-valued relative distinguished names (RDNs). Based on rfc4514\n")
 
-	cn = input(u"Common Name: ") #NameOID.COMMON_NAME: Common Name
-	country = input(u"Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
-	state = input(u"State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
-	street = input(u"Street Address: ") #NameOID.STREET_ADDRESS: Street Address
-	postalcode = input(u"Postal Code: ") #NameOID.POSTAL_CODE: Postal Code 
-	locality = input(u"Locality Name: ") #NameOID.LOCALITY_NAME: Locality Name
-	orgname = input(u"Organization Name: ") #NameOID.ORGANIZATION_NAME: Organization Name
-	orgunit = input(u"Organizational Unit Name: ") #NameOID.ORGANIZATIONAL_UNIT_NAME: Organizational Unit Name
-	email = input(u"Email Address: ") #NameOID.EMAIL_ADDRESS: Email Address
+	cn = input("Common Name: ") #NameOID.COMMON_NAME: Common Name
+	country = input("Country Name (2 letter code): ") #NameOID.COUNTRY_NAME: Country Name
+	state = input("State or Province Name (full name): ") #NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
+	street = input("Street Address: ") #NameOID.STREET_ADDRESS: Street Address
+	postalcode = input("Postal Code: ") #NameOID.POSTAL_CODE: Postal Code 
+	locality = input("Locality Name: ") #NameOID.LOCALITY_NAME: Locality Name
+	orgname = input("Organization Name: ") #NameOID.ORGANIZATION_NAME: Organization Name
+	orgunit = input("Organizational Unit Name: ") #NameOID.ORGANIZATIONAL_UNIT_NAME: Organizational Unit Name
+	email = input("Email Address: ") #NameOID.EMAIL_ADDRESS: Email Address
 
 	if mode == "long":
-		dc = input(u"Domain Component: ") #NameOID.DOMAIN_COMPONENT
-		userid = input(u"UserID: ") #NameOID.USER_ID
-		givenname = input(u"Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
-		initials = input(u"Initials: ") #NameOID.INITIALS: Initials of Given Names 
-		surname = input(u"Surname: ") #NameOID.SURNAME: Surname or Family Name
-		title = input(u"Title or Honorific: ") #NameOID.TITLE: Title or Honorific
-		pseudonym = input(u"Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
-		unstructured = input(u"Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
+		dc = input("Domain Component: ") #NameOID.DOMAIN_COMPONENT
+		userid = input("UserID: ") #NameOID.USER_ID
+		givenname = input("Given Name: ") #NameOID.GIVEN_NAME: Given Name or First Name
+		initials = input("Initials: ") #NameOID.INITIALS: Initials of Given Names 
+		surname = input("Surname: ") #NameOID.SURNAME: Surname or Family Name
+		title = input("Title or Honorific: ") #NameOID.TITLE: Title or Honorific
+		pseudonym = input("Pseudonym: ") #NameOID.PSEUDONYM: Pseudonym or Alias
+		unstructured = input("Unstructured Name: ") #NameOID.UNSTRUCTURED_NAME: 1.2.840.113549.1.9.2
 
 	dn_types = []
 
@@ -650,7 +640,7 @@ def main():
 	argparse_main.add_argument("-m","--mode",type=str.lower,choices=["short","long"], default="long",help="Short prompt mode: Only display common distringuished names. Skips extensions")
 	args = argparse_main.parse_args()
 		
-	print(f"\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
+	print("\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
 
 	if args.private_key:
 		try:
@@ -660,11 +650,11 @@ def main():
 
 		except FileNotFoundError:
 			print(f"Defined private key file '{args.private_key}' not found.")
-			quit()
+			sys.exit()
 
 	if args.create_key:
 		check = private_key_checker(filename=args.create_key,verbosity=args.verbose)
-		if check == False:
+		if check is False:
 			private_key = create_private_key(
 				private_key_filename=args.create_key,
 				encrypt=args.encrypt,
@@ -674,7 +664,7 @@ def main():
 
 	if args.create_key is None:
 		check = private_key_checker(filename="privatekey.pem",verbosity=args.verbose)
-		if check == False:
+		if check is False:
 			private_key = create_private_key(
 				private_key_filename="privatekey.pem",
 				encrypt=args.encrypt,
@@ -695,8 +685,8 @@ def main():
 				outfile.write(csr_list[1])
 				print(f"CSR PEM written to '{args.out}'")
 	
-	except Exception as e:
-		print(f"Exception thrown: {e}")
+	except Exception as main_exception:
+		print(f"Exception thrown: {main_exception}")
 
 
 if __name__ == '__main__':
