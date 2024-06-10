@@ -5,7 +5,7 @@
 Ultimate CSR tool
 =========================================
 
-@version   11
+@version   12
 @author    pkiscape.com
 @link      https://github.com/pkiscape
 
@@ -238,21 +238,28 @@ def hash_builder(hash_algorithm):
 
     return hash_function_obj
 
-
-def yes_no_input(prompt: str):
+def yes_no_input(prompt: str, required_answer :bool = False):
     """
     Since there are a lot of yes/no questions, this function helps reduce lines!
     """
-    user_input = input(prompt).lower()
-    if user_input == "y":
-        return True
+    positive = ["y","yes"]
+    negative = ["n","no"]
 
-    if user_input == "n":
-        return False
+    while True:
+        user_input = input(prompt).lower()
 
-    else:
-        # No user input means "no"
-        return False
+        if user_input in positive:
+            return True
+
+        elif user_input in negative:
+            return False
+
+        else:
+            if required_answer:
+                print("Please enter in 'y' (yes) or 'n' (no).")
+            else:
+                # No user input means "no"
+                return False
 
 
 def integer_input(prompt):
@@ -278,25 +285,25 @@ def x509_subject(verbosity, mode):
     if verbosity:
         print("These are single-valued relative distinguished names (RDNs). Based on rfc4514\n")
 
-    common_name_value = input("Common Name: ")  # NameOID.COMMON_NAME: Common Name
-    country = input("Country Name (2 letter code): ")  # NameOID.COUNTRY_NAME: Country Name
-    state = input("State or Province Name (full name): ")  # NameOID.STATE_OR_PROVINCE_NAME: State or Province Name
-    street = input("Street Address: ")  # NameOID.STREET_ADDRESS: Street Address
-    postalcode = input("Postal Code: ")  # NameOID.POSTAL_CODE: Postal Code
-    locality = input("Locality Name: ")  # NameOID.LOCALITY_NAME: Locality Name
-    orgname = input("Organization Name: ")  # NameOID.ORGANIZATION_NAME: Organization Name
-    orgunit = input("Organizational Unit Name: ")  # NameOID.ORGANIZATIONAL_UNIT_NAME: Organizational Unit Name
-    email = input("Email Address: ")  # NameOID.EMAIL_ADDRESS: Email Address
+    common_name_value = input("Common Name: ")
+    country = input("Country Name (2 letter code): ")
+    state = input("State or Province Name (full name): ")
+    street = input("Street Address: ")
+    postalcode = input("Postal Code: ")
+    locality = input("Locality Name: ")
+    orgname = input("Organization Name: ")
+    orgunit = input("Organizational Unit Name: ")
+    email = input("Email Address: ")
 
     if mode == "long":
-        domain_comp = input("Domain Component: ")  # NameOID.DOMAIN_COMPONENT
-        userid = input("UserID: ")  # NameOID.USER_ID
-        givenname = input("Given Name: ")  # NameOID.GIVEN_NAME: Given Name or First Name
-        initials = input("Initials: ")  # NameOID.INITIALS: Initials of Given Names
-        surname = input("Surname: ")  # NameOID.SURNAME: Surname or Family Name
-        title = input("Title or Honorific: ")  # NameOID.TITLE: Title or Honorific
-        pseudonym = input("Pseudonym: ")  # NameOID.PSEUDONYM: Pseudonym or Alias
-        unstructured = input("Unstructured Name: ")  # NameOID.UNSTRUCTURED_NAME
+        domain_comp = input("Domain Component: ")
+        userid = input("UserID: ")
+        givenname = input("Given Name: ")  # Given Name or First Name
+        initials = input("Initials: ")  # Initials of Given Names
+        surname = input("Surname: ")  # Surname or Family Name
+        title = input("Title or Honorific: ")
+        pseudonym = input("Pseudonym: ")  # Pseudonym or Alias
+        unstructured = input("Unstructured Name: ")
 
     dn_types = []
 
@@ -374,14 +381,16 @@ def x509_extensions(csr):
         subject_alt_names_values = []
 
         # DNS Names
-        if yes_no_input("Would you like to add DNS names? (y/n): "):
+        if yes_no_input("Would you like to add DNS names? (y/n): ",
+            required_answer = True):
             san_dns_int = integer_input("How many? Enter in an integer: ")
             for dns_entry in range(san_dns_int):
                 dns_name = input("Enter DNS entry: ")
                 subject_alt_names_values.append(x509.DNSName(dns_name))
 
         # IPv4 Addresses
-        if yes_no_input("Would you like to add IPv4 Addresses? (y/n): "):
+        if yes_no_input("Would you like to add IPv4 Addresses? (y/n): ",
+            required_answer = True):
             san_ip_int = integer_input("How many? Enter in an integer: ")
             for ip_entry in range(san_ip_int):
                 while True:
@@ -404,7 +413,8 @@ def x509_extensions(csr):
         csr = csr.add_extension(subject_alternative_name, critical=san_critical_choice)
 
     # BasicConstraints: x509.BasicConstraints
-    if yes_no_input("Would you like to request Basic Constraints? (y/n): "):
+    if yes_no_input("Would you like to request Basic Constraints? (y/n): ",
+        required_answer = True):
         if yes_no_input("Would you like to mark Basic Constraints as critical? (y/n): "):
             critical_choice = True
         else:
@@ -425,8 +435,9 @@ def x509_extensions(csr):
         csr = csr.add_extension(basic_constraints, critical=critical_choice)
 
     # KeyUsage: x509.KeyUsage
-    if yes_no_input("Would you like to request Key Usage values? (y/n): "):
-        print("Type (y/n) for each possible value.")
+    if yes_no_input("Would you like to request Key Usage values? (y/n): ",
+        required_answer = True):
+        print("Type (y/n) for each possible value. Leave blank if not required")
 
         if yes_no_input("Digital Signature: "):
             ku_ds = True
@@ -497,10 +508,11 @@ def x509_extensions(csr):
         csr = csr.add_extension(key_usage, critical=ku_critical_choice)
 
     # ExtendedKeyUsage: x509.ExtendedKeyUsage
-    if yes_no_input("Would you like to request Extended Key Usage values? (y/n): "):
+    if yes_no_input("Would you like to request Extended Key Usage values? (y/n): ",
+        required_answer = True):
         eku_choices = []
 
-        print("Type (y/n) for each extended key usage value")
+        print("Type (y/n) for each extended key usage value. Leave blank if not required")
 
         if yes_no_input("TLS Server Auth: "):
             eku_choices.append(x509.oid.ExtendedKeyUsageOID.SERVER_AUTH)
@@ -584,7 +596,8 @@ def csr_builder(private_key, hash_algorithm, verbosity, mode):
 
     if mode == "long":
         # Pass CSR to x509_extensions(), add v3 extensions, return CSR
-        if yes_no_input("Would you like to request x509v3 Extensions? (y/n):"):
+        if yes_no_input("Would you like to request x509v3 Extensions? (y/n):",
+            required_answer = True):
             csr = x509_extensions(csr=csr)
 
     # Build hash object
@@ -685,7 +698,7 @@ def main():
                 private_key_format=args.private_key_format)
 
     try:
-    	#This builds the CSR, returns a list.
+        #This builds the CSR, returns a list.
         csr_list = csr_builder(
             private_key=private_key,
             hash_algorithm=args.hash_algorithm,
