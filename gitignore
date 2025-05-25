@@ -4,6 +4,8 @@ __pycache__/
 *.so
 *.pyd
 *.pyo
+*.pyc
+
 
 # Compiled bytecode or C extensions
 *.cpython-*.pyc
