@@ -1,0 +1,45 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.so
+*.pyd
+*.pyo
+
+# Compiled bytecode or C extensions
+*.cpython-*.pyc
+
+# VSCode or PyCharm project files
+.vscode/
+.idea/
+
+# Environment files
+.env
+.venv/
+venv/
+*.env
+
+# Output folders (auto-generated artifacts)
+output/
+!output/.gitkeep
+
+# Tests cache
+.pytest_cache/
+coverage.xml
+htmlcov/
+.tox/
+
+# Logs and temporary files
+*.log
+*.tmp
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Distribution artifacts
+build/
+dist/
+*.egg-info/

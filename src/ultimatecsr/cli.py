@@ -2,16 +2,14 @@
 
 """
 =========================================
-Ultimate CSR tool
+Ultimate CSR tool - CLI
 =========================================
 
-@version   12
 @author    pkiscape.com
 @link      https://github.com/pkiscape
 
 """
 
-import argparse
 import ipaddress
 import sys
 from pathlib import Path
@@ -23,6 +21,11 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.x509.oid import AttributeOID, NameOID
 from cryptography.hazmat.backends import default_backend  # For older versions of cryptography
 
+# === Path Constants ===
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PRIVATE_KEYS_DIR = PROJECT_ROOT / "output" / "private_keys"
+CSR_DIR = PROJECT_ROOT / "output" / "csr"
+
 
 def load_private_key(private_key_filename, verbosity):
     """
@@ -31,6 +34,7 @@ def load_private_key(private_key_filename, verbosity):
 
     if verbosity:
         print(f"Attempting to load private key: {private_key_filename}")
+
 
     # Open Private key file
     with open(private_key_filename, "rb") as private_key_file_opened:
@@ -629,69 +633,52 @@ def csr_builder(private_key, hash_algorithm, verbosity, mode):
     return csr_list
 
 
-def main():
+def run_cli(args):
     """
     The Ultimate CSR tool is an interactive CLI tool that allows you to define many different distinguished name types and x509v3 extensions.
-
     By: pkiscape.com
     """
 
-    argparse_main = argparse.ArgumentParser(description="X.509 Certificate Signing Request Maker")
-
-    argparse_group = argparse_main.add_mutually_exclusive_group(required=True)
-
-    argparse_group.add_argument(
-        "-p", "--private-key", nargs="?", help="Define your existing private key.")
-    argparse_group.add_argument(
-        "-ck", "--create-key", nargs="?", default="", help="Creates a private key for you. If no name is provided, it uses 'privatekey.pem'.")
-    argparse_main.add_argument(
-        "-pkf", "--private-key-format", type=str.upper, choices=["PKCS1", "PKCS8", "OPENSSH"], default="PKCS8", 
-        help="When creating a private key with --create-key, choose the format it gets created. Default (PKCS8)")
-    argparse_main.add_argument(
-        "-ka","--key-algorithm",type=str.upper,choices=["RSA2048", "RSA4096", "SECP256R1", "SECP384R1", "SECP521R1", "SECP256K1"],
-        default="SECP384R1",help="Define the algorithm and key size of the private key you define with --create-key. Default (SECP384R1).")
-    argparse_main.add_argument(
-        "-e", "--encrypt", action="store_true", help="Encrypt the private key you create with --create-key")
-    argparse_main.add_argument(
-        "-o", "--out", help="Define the CSR output filename")
-    argparse_main.add_argument(
-        "-ha", "--hash-algorithm", type=str.upper, default="SHA256", choices=["SHA224", "SHA256", "SHA384", "SHA512", "SHA3_224", "SHA3_256", "SHA3_384", "SHA3_512"], 
-        help="Define the hashing algorithm (Signature Algorithm). Default(SHA256).")
-    argparse_main.add_argument(
-        "-v", "--verbose", action="store_true", help="Enable verbosity (more wordiness)")
-    argparse_main.add_argument(
-        "-m", "--mode", type=str.lower, choices=["short", "long"], default="long", help="Short prompt mode: Only display common distringuished names. Skips extensions")
-    args = argparse_main.parse_args()
-
-    print("\nWelcome to the Ultimate CSR tool! By: pkiscape.com\n")
 
     if args.private_key:
+
+        # Ensure the directory exists
+        priv_key_path = PRIVATE_KEYS_DIR / args.private_key
+        priv_key_path.parent.mkdir(parents=True, exist_ok=True)
+
         try:
             private_key = load_private_key(
-                private_key_filename=args.private_key,
+                private_key_filename=priv_key_path,
                 verbosity=args.verbose)
 
         except FileNotFoundError:
-            print(f"Defined private key file '{args.private_key}' not found.")
+            print(f"Defined private key file '{priv_key_path}' not found.")
             sys.exit()
 
     if args.create_key:
+        # Ensure the directory exists
+        create_priv_key_path = PRIVATE_KEYS_DIR / args.create_key
+        create_priv_key_path.parent.mkdir(parents=True, exist_ok=True)
+
         check = private_key_checker(
-            filename=args.create_key,
+            filename=create_priv_key_path,
             verbosity=args.verbose)
         if check is False:
             private_key = create_private_key(
-                private_key_filename=args.create_key,
+                private_key_filename=create_priv_key_path,
                 encrypt=args.encrypt,
                 key_algorithm=args.key_algorithm,
                 verbosity=args.verbose,
                 private_key_format=args.private_key_format)
 
     if args.create_key is None:
-        check = private_key_checker(filename="privatekey.pem", verbosity=args.verbose)
+
+        default_priv_key_path = PRIVATE_KEYS_DIR / "privatekey.pem"
+
+        check = private_key_checker(filename=default_priv_key_path, verbosity=args.verbose)
         if check is False:
             private_key = create_private_key(
-                private_key_filename="privatekey.pem",
+                private_key_filename= default_priv_key_path,
                 encrypt=args.encrypt,
                 key_algorithm=args.key_algorithm,
                 verbosity=args.verbose,
@@ -699,6 +686,7 @@ def main():
 
     try:
         #This builds the CSR, returns a list.
+
         csr_list = csr_builder(
             private_key=private_key,
             hash_algorithm=args.hash_algorithm,
@@ -707,12 +695,12 @@ def main():
         #In [0], it contains the object and in [1], the PEM CSR.
 
         if args.out:
-            with open(args.out, "wb") as outfile:
+            # Ensure the directory exists
+            create_csr_path = CSR_DIR / args.out
+            create_csr_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(create_csr_path, "wb") as outfile:
                 outfile.write(csr_list[1])
-                print(f"CSR PEM written to '{args.out}'")
+                print(f"CSR PEM written to '{create_csr_path}'")
 
     except Exception as main_exception:
         print(f"Exception thrown: {main_exception}")
-
-if __name__ == "__main__":
-    main()

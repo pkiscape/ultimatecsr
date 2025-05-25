@@ -1,0 +1,105 @@
+{
+  "template_name": "example",
+  "version": "1",
+  "description": "Template for testing",
+  "author": "Author",
+  "private_key_config": {
+    "create_new_private_key": true,
+    "private_key_overwrite_protection": false,
+    "new_private_key_config":{
+      "private_key_filename": "private_key.pem",
+      "random_private_key_name":true,
+      "key_algorithm":"SECP521R1",
+      "encrypt": false,
+      "private_key_format":"PKCS8"
+    },
+    "existing_private_key_config":{
+      "private_key_filename": "privatekey.pem"
+    }
+
+  },
+  "x509_subject": {
+    "serial_number": "1",
+    "common_name": "Testing Certificate",
+    "country_name (2 letter code)": "",
+    "state_or_province_name (full name)": "", 
+    "street_address": "",
+    "postal_code": "",
+    "locality_name": "",
+    "organization_name": "Testing", 
+    "organizational_unit_name": "",
+    "email_address": "",
+    "domain_component": "",
+    "user_id": "",
+    "given_name": "",
+    "initials": "",
+    "surname": "",
+    "title_or_honorific": "", 
+    "pseudonym": "",
+    "unstructured_name":"",
+    "custom_oids": {
+        "2.5.4.91": "test",
+        "2.5.4.87": "url",
+        "2.5.4.24": "number"
+      }
+
+  },
+  "x509_extensions": {
+    "subject_alternative_names": {
+      "dns":["example.com","test.example.com"],
+      "ip_address": ["192.168.1.99","192.168.1.100"],
+      "critical":false
+    },
+    "basic_constraints": {
+      "ca":false,
+      "path_length":null,
+      "critical":true
+    },
+    "key_usage":{
+      "digital_signature":true, 
+      "key_encipherment": true,
+      "content_commitment(non_repudiation)": false, 
+      "data_encipherment": false,
+      "key_agreement":true,
+      "encipher_only":false,
+      "decipher_only": false,
+      "key_cert_sign(certificate_sign)": true, 
+      "crl_sign": false,
+      "critical": true
+    },
+    "extended_key_usage":{
+      "tls_server_auth":true,
+      "tls_client_auth":true,
+      "code_signing":false,
+      "email_address":false,
+      "time_stamping":false, 
+      "ocsp_signing":false,
+      "any_extended_key_usage":false,
+      "smartcard_login":false,
+      "kerberos_pkinit_kdc(signing_kdc_response)":false,
+      "ipsec_ike_ipsec_internet_key_exchange":false,
+      "certificate_transparency_ct_precertificate_signer":false, 
+      "ssh_client_secure_shell_client":false,
+      "ssh_server_secure_shell_server":false,
+      "critical": false,
+      "custom_oids": {
+        "oids":["1.3.6.1.5.5.7.3.34","1.3.6.1.5.5.7.3.12"]
+      }
+      }
+    },
+  "signing_hash_algorithm":"SHA256",
+  "challenge_password":false,
+  "csr_output_config": {
+    "output_format": "PEM",
+    "csr_output_file_name": "mycsr.pem",
+    "random_output_file_name":false
+     },
+  "optional_template_metadata": {
+    "created_at": "2025-02-16T12:00:00Z",
+    "updated_at": "2025-02-16T12:00:00Z",
+    "tags":{
+      "key":"value"
+    }
+  }
+ }
+
